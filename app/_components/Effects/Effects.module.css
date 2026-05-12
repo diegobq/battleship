@@ -1,0 +1,47 @@
+.toast {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  z-index: 50;
+  pointer-events: none;
+  animation: pop 1.6s ease-out forwards;
+}
+
+.hit {
+  background: var(--brand-danger);
+  color: var(--surface-fg);
+}
+
+.sunk {
+  background: var(--brand-secondary);
+  color: var(--surface-bg);
+  font-size: 1.125rem;
+}
+
+.miss {
+  background: var(--surface-elevated);
+  color: var(--surface-fg);
+}
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px) scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1.05);
+  }
+  80% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.95);
+  }
+}

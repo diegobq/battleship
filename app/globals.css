@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+ * Theme tokens
+ *
+ * The marketing team can ship a new skin (e.g. Christmas) by adding a CSS file
+ * that overrides these custom properties under a [data-theme="…"] selector and
+ * toggling the attribute on <html>. No component code or Tailwind class needs
+ * to change. See app/_theme/christmas.css.
+ * =========================================================================== */
+
+:root {
+  /* Surfaces */
+  --surface-bg: #0b1220;
+  --surface-fg: #e6edf3;
+  --surface-muted: #1c2538;
+  --surface-elevated: #16213a;
+
+  /* Brand */
+  --brand-primary: #4a8ff7;
+  --brand-secondary: #f7c948;
+  --brand-danger: #ef4444;
+  --brand-success: #10b981;
+
+  /* Board */
+  --board-grid-line: #2a3550;
+  --board-cell-empty: #0e1830;
+  --board-cell-ship: #4a8ff7;
+  --board-cell-hit: #ef4444;
+  --board-cell-miss: #6b7280;
+  --board-cell-sunk: #7f1d1d;
+
+  /* HUD */
+  --hud-bg: #16213a;
+  --hud-score: #f7c948;
+  --hud-multiplier: #10b981;
+  --hud-timer: #4a8ff7;
+
+  /* Typography */
+  --font-sans: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
+@theme inline {
+  --color-surface-bg: var(--surface-bg);
+  --color-surface-fg: var(--surface-fg);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-danger: var(--brand-danger);
+  --color-brand-success: var(--brand-success);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+html,
+body {
+  background: var(--surface-bg);
+  color: var(--surface-fg);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
