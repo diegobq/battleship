@@ -38,7 +38,7 @@ RUN rm -rf apps/web/.next
 RUN pnpm --filter @battleship/web build
 
 # Compile custom server
-RUN npx tsc --project tsconfig.server.json
+RUN npx tsc --project tsconfig.server.json --rootDir apps/web --outDir dist
 RUN npx tsc-alias --project tsconfig.server.json
 
 # Remove development dependencies
