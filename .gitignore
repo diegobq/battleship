@@ -16,12 +16,6 @@
 # personal documentation
 /docs
 
-# fly
-fly.toml
-Dockerfile
-.dockerignore
-docker-entrypoint.js
-
 # next.js
 /.next/
 /out/
