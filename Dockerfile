@@ -31,15 +31,16 @@ RUN pnpm install --frozen-lockfile --prod=false
 # Copy application code
 COPY . .
 
-# Clean Next.js cache to avoid stale build issues
-RUN rm -rf apps/web/.next
-
-# Build application
+# Build application from the web app directory
+WORKDIR /app/apps/web
 RUN npx next build --experimental-build-mode compile
 
-# Compile custom server
+# Compile custom server from the web app directory
 RUN npx tsc --project tsconfig.server.json
 RUN npx tsc-alias --project tsconfig.server.json
+
+# Go back to root for the final stage
+WORKDIR /app
 
 # Remove development dependencies
 RUN pnpm prune --prod
