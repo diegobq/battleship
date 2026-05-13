@@ -31,6 +31,9 @@ RUN pnpm install --frozen-lockfile --prod=false
 # Copy application code
 COPY . .
 
+# Clean Next.js cache to avoid stale build issues
+RUN rm -rf apps/web/.next
+
 # Build application
 RUN npx next build --experimental-build-mode compile
 
