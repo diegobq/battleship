@@ -21,9 +21,6 @@ export default function GameShell({ gameId }: { gameId: string }) {
 }
 
 function NoPlayerIdState() {
-  if (typeof window === 'undefined') {
-    return <p className="p-6 opacity-70">Loading…</p>;
-  }
   return (
     <ErrorView
       title="Missing player identity"

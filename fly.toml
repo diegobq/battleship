@@ -1,15 +1,15 @@
-# fly.toml app configuration file generated for app-winter-shadow-165 on 2026-05-12T20:06:07Z
+# fly.toml app configuration file generated for diego-bevaqua-asse-20260519-lucid-log-5558 on 2026-05-12T22:19:38+02:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'app-winter-shadow-165'
-primary_region = 'iad'
+app = 'diego-bevaqua-asse-20260519-lucid-log-5558'
+primary_region = 'fra'
 
 [build]
 
 [http_service]
-  internal_port = 8080
+  internal_port = 3000
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
@@ -20,4 +20,4 @@ primary_region = 'iad'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 256
+  memory_mb = 1024

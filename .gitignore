@@ -14,10 +14,13 @@
 /coverage
 
 # personal documentation
-/.claude
 /docs
-SOLUTION-*.md
-CLAUDE.md
+
+# fly
+fly.toml
+Dockerfile
+.dockerignore
+docker-entrypoint.js
 
 # next.js
 /.next/

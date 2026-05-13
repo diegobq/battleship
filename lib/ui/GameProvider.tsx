@@ -46,8 +46,8 @@ export function GameProvider({
 
   const url = useMemo(() => {
     if (typeof window === 'undefined') return null;
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${proto}//${window.location.host}/api/game/stream?gameId=${encodeURIComponent(gameId)}&playerId=${encodeURIComponent(playerId)}`;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${window.location.host}/api/game/stream?gameId=${encodeURIComponent(gameId)}&playerId=${encodeURIComponent(playerId)}`;
   }, [gameId, playerId]);
 
   const handleMessage = useCallback((raw: string) => {
