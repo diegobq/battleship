@@ -34,6 +34,9 @@ COPY . .
 # Build application
 RUN npx next build --experimental-build-mode compile
 
+# Compile custom server
+RUN npx tsc --project tsconfig.server.json
+
 # Remove development dependencies
 RUN pnpm prune --prod
 
@@ -49,4 +52,4 @@ ENTRYPOINT [ "/app/docker-entrypoint.js" ]
 
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
-CMD [ "pnpm", "run", "start" ]
+CMD [ "node", "dist/server.js" ]

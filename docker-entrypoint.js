@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { spawn } = require('node:child_process')
 
 const env = { ...process.env }
 
-;(async() => {
-  // If running the web server then prerender pages
-  if (process.argv.slice(-3).join(' ') === 'pnpm run start') {
-    await exec('npx next build --experimental-build-mode generate')
-  }
+  ; (async () => {
+    // If running the web server then prerender pages
+    if (process.argv.slice(-2).join(' ') === 'node dist/server.js') {
+      await exec('npx next build --experimental-build-mode generate')
+    }
 
-  // launch application
-  await exec(process.argv.slice(2).join(' '))
-})()
+    // launch application
+    await exec(process.argv.slice(2).join(' '))
+  })()
 
 function exec(command) {
   const child = spawn(command, { shell: true, stdio: 'inherit', env })
