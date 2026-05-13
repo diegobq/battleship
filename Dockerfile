@@ -36,6 +36,7 @@ RUN npx next build --experimental-build-mode compile
 
 # Compile custom server
 RUN npx tsc --project tsconfig.server.json
+RUN npx tsc-alias --project tsconfig.server.json
 
 # Remove development dependencies
 RUN pnpm prune --prod
