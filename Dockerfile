@@ -37,9 +37,9 @@ RUN rm -rf apps/web/.next
 # Build application using pnpm workspace filter
 RUN pnpm --filter @battleship/web build
 
-# Compile custom server
-RUN npx tsc --project tsconfig.server.json --rootDir apps/web --outDir dist
-RUN npx tsc-alias --project tsconfig.server.json
+# Compile custom server using pnpm dlx
+RUN pnpm dlx typescript --project tsconfig.server.json --rootDir apps/web --outDir dist
+RUN pnpm dlx tsc-alias --project tsconfig.server.json
 
 # Remove development dependencies
 RUN pnpm prune --prod
