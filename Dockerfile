@@ -38,7 +38,7 @@ RUN rm -rf apps/web/.next
 RUN pnpm --filter @battleship/web build
 
 # Compile custom server using pnpm dlx
-RUN pnpm --package=typescript dlx tsc --project tsconfig.server.json --rootDir apps/web --outDir dist
+RUN pnpm --package=typescript dlx tsc --project tsconfig.server.json
 RUN pnpm --package=tsc-alias dlx tsc-alias --project tsconfig.server.json
 
 # Remove development dependencies
@@ -56,4 +56,4 @@ ENTRYPOINT [ "/app/docker-entrypoint.js" ]
 
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
-CMD [ "node", "dist/server.js" ]
+CMD [ "node", "dist/apps/web/server.js" ]
