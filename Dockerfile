@@ -38,8 +38,8 @@ RUN rm -rf apps/web/.next
 RUN pnpm --filter @battleship/web build
 
 # Compile custom server using pnpm dlx
-RUN pnpm dlx typescript --project tsconfig.server.json --rootDir apps/web --outDir dist
-RUN pnpm dlx tsc-alias --project tsconfig.server.json
+RUN pnpm --package=typescript dlx tsc --project tsconfig.server.json --rootDir apps/web --outDir dist
+RUN pnpm --package=tsc-alias dlx tsc-alias --project tsconfig.server.json
 
 # Remove development dependencies
 RUN pnpm prune --prod

@@ -2,12 +2,16 @@
   "name": "diego-bevaqua-asse-20260519",
   "private": true,
   "scripts": {
-    "dev":           "pnpm --filter @battleship/web dev",
-    "build":         "pnpm --filter @battleship/web build",
-    "start":         "pnpm --filter @battleship/web start",
-    "lint":          "pnpm -r lint",
-    "test":          "pnpm -r test",
-    "test:watch":    "pnpm -r test:watch",
+    "dev": "pnpm --filter @battleship/web dev",
+    "build": "pnpm --filter @battleship/web build",
+    "start": "pnpm --filter @battleship/web start",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "test:watch": "pnpm -r test:watch",
     "test:coverage": "pnpm -r test:coverage"
+  },
+  "devDependencies": {
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6"
   }
 }
