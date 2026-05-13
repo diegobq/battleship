@@ -31,15 +31,13 @@ export interface GameContextValue {
 
 const GameContext = createContext<GameContextValue | null>(null);
 
-export function GameProvider({
-  gameId,
-  playerId,
-  children,
-}: {
+interface GameProviderProps {
   gameId: string;
   playerId: string;
   children: ReactNode;
-}) {
+}
+
+function useGameContext(gameId: string, playerId: string) {
   const [state, setState] = useState<GameState | null>(null);
   const [lastShot, setLastShot] = useState<ShotEvent | null>(null);
   const [turnExpiredPlayerId, setTurnExpiredPlayerId] = useState<string | null>(null);
@@ -47,26 +45,18 @@ export function GameProvider({
 
   const url = useMemo(() => {
     if (typeof window === 'undefined') return null;
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}/api/game/stream?gameId=${encodeURIComponent(gameId)}&playerId=${encodeURIComponent(playerId)}`;
+    const p = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${p}//${window.location.host}/api/game/stream?gameId=${encodeURIComponent(gameId)}&playerId=${encodeURIComponent(playerId)}`;
   }, [gameId, playerId]);
 
   const handleMessage = useCallback((raw: string) => {
     try {
       const msg = JSON.parse(raw);
       switch (msg.type) {
-        case 'GAME_STATE_UPDATE':
-          setState(msg.payload.state);
-          break;
-        case 'SHOT_RESULT':
-          setLastShot({ ...msg.payload, at: Date.now() });
-          break;
-        case 'TURN_TIMEOUT':
-          setTurnExpiredPlayerId(msg.payload.playerId);
-          break;
-        case 'ERROR':
-          setErrorMessage(msg.payload.message);
-          break;
+        case 'GAME_STATE_UPDATE': setState(msg.payload.state); break;
+        case 'SHOT_RESULT': setLastShot({ ...msg.payload, at: Date.now() }); break;
+        case 'TURN_TIMEOUT': setTurnExpiredPlayerId(msg.payload.playerId); break;
+        case 'ERROR': setErrorMessage(msg.payload.message); break;
       }
     } catch (e) {
       console.error('Failed to handle WS message:', e);
@@ -81,24 +71,16 @@ export function GameProvider({
     return () => clearTimeout(t);
   }, [turnExpiredPlayerId]);
 
-  const placeFleet = useCallback(
-    (placements: ShipPlacement[]) =>
-      send(JSON.stringify({ type: 'PLACE_FLEET', payload: { placements } })),
-    [send],
-  );
+  const placeFleet = useCallback((placements: ShipPlacement[]) => send(JSON.stringify({ type: 'PLACE_FLEET', payload: { placements } })), [send]);
+  const shoot = useCallback((r: number, c: number) => send(JSON.stringify({ type: 'SHOOT', payload: { r, c } })), [send]);
+  const leaveGame = useCallback(() => send(JSON.stringify({ type: 'LEAVE_GAME' })), [send]);
+  const dismissError = useCallback(() => setErrorMessage(null), [setErrorMessage]);
 
-  const shoot = useCallback(
-    (r: number, c: number) => send(JSON.stringify({ type: 'SHOOT', payload: { r, c } })),
-    [send],
-  );
+  return { state, wsState, lastShot, turnExpiredPlayerId, errorMessage, placeFleet, shoot, leaveGame, dismissError };
+}
 
-  const leaveGame = useCallback(
-    () => send(JSON.stringify({ type: 'LEAVE_GAME' })),
-    [send],
-  );
-
-  const dismissError = useCallback(() => setErrorMessage(null), []);
-
+export function GameProvider({ gameId, playerId, children }: GameProviderProps) {
+  const { state, wsState, lastShot, turnExpiredPlayerId, errorMessage, placeFleet, shoot, leaveGame, dismissError } = useGameContext(gameId, playerId);
   const value = useMemo<GameContextValue>(
     () => ({
       state,
@@ -115,7 +97,6 @@ export function GameProvider({
     }),
     [state, gameId, playerId, wsState, lastShot, turnExpiredPlayerId, errorMessage, placeFleet, shoot, leaveGame, dismissError],
   );
-
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
 

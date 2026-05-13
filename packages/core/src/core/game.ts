@@ -177,16 +177,16 @@ export function processShot(
     clock: deps.clock,
   });
 
-  return {
-    game: nextGame,
-    result: {
-      hit: shot.hit,
-      sunkShipType: shipUpdate.sunkShipType,
-      gameOver,
-      scoreAwarded,
-      cellStatus: shot.hit ? 'hit' : 'miss',
-    },
-  };
+  return { game: nextGame, result: buildShotResult(shot.hit, shipUpdate.sunkShipType, scoreAwarded, gameOver) };
+}
+
+function buildShotResult(
+  hit: boolean,
+  sunkShipType: ShipType | undefined,
+  scoreAwarded: number,
+  gameOver: boolean,
+): ShotResult {
+  return { hit, sunkShipType, gameOver, scoreAwarded, cellStatus: hit ? 'hit' : 'miss' };
 }
 
 function applyHitToShips(
