@@ -1,0 +1,26 @@
+/* Christmas skin: marketing-team overrides for the holiday season.
+ * Activate by setting <html data-theme="christmas">. No component code changes. */
+
+[data-theme="christmas"] {
+  --surface-bg: #0a2b16;
+  --surface-fg: #f8f4e7;
+  --surface-muted: #143d24;
+  --surface-elevated: #1c5430;
+
+  --brand-primary: #c0392b;
+  --brand-secondary: #f1c40f;
+  --brand-danger: #ff6b6b;
+  --brand-success: #2ecc71;
+
+  --board-grid-line: #205c33;
+  --board-cell-empty: #0e3a1d;
+  --board-cell-ship: #c0392b;
+  --board-cell-hit: #ff6b6b;
+  --board-cell-miss: #d5d2c2;
+  --board-cell-sunk: #5b1a1a;
+
+  --hud-bg: #1c5430;
+  --hud-score: #f1c40f;
+  --hud-multiplier: #2ecc71;
+  --hud-timer: #c0392b;
+}

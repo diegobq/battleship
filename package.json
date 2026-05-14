@@ -1,28 +1,18 @@
 {
   "name": "diego-bevaqua-asse-20260519",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "next": "16.2.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "dev": "pnpm --filter @battleship/web dev",
+    "build": "pnpm --filter @battleship/web build",
+    "start": "pnpm --filter @battleship/web start",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "test:watch": "pnpm -r test:watch",
+    "test:coverage": "pnpm -r test:coverage",
+    "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9",
-    "eslint-config-next": "16.2.6",
-    "tailwindcss": "^4",
-    "typescript": "^5",
-    "vitest": "^2.1.9"
+    "eslint-config-next": "16.2.6"
   }
 }

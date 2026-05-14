@@ -1,0 +1,54 @@
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ship {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--surface-elevated);
+  background: var(--surface-muted);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 120ms;
+}
+
+.ship.selected {
+  border-color: var(--brand-primary);
+  box-shadow: inset 0 0 0 1px var(--brand-primary);
+}
+
+.ship.placed {
+  opacity: 0.5;
+}
+
+.cells {
+  display: flex;
+  gap: 2px;
+}
+
+.cell {
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--brand-primary);
+  border-radius: 3px;
+}
+
+.label {
+  font-size: 0.875rem;
+}
+
+.removeButton {
+  margin-left: auto;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: var(--surface-elevated);
+  border: none;
+  color: var(--surface-fg);
+  cursor: pointer;
+}
