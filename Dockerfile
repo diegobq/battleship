@@ -31,12 +31,15 @@ RUN pnpm install --frozen-lockfile --prod=false
 # Copy application code
 COPY . .
 
-# Build application
-RUN npx next build --experimental-build-mode compile
+# Clean Next.js cache to avoid stale build issues
+RUN rm -rf apps/web/.next
 
-# Compile custom server
-RUN npx tsc --project tsconfig.server.json
-RUN npx tsc-alias --project tsconfig.server.json
+# Build application using pnpm workspace filter
+RUN pnpm --filter @battleship/web build
+
+# Compile custom server using pnpm dlx
+RUN pnpm --package=typescript dlx tsc --project tsconfig.server.json
+RUN pnpm --package=tsc-alias dlx tsc-alias --project tsconfig.server.json
 
 # Remove development dependencies
 RUN pnpm prune --prod
@@ -53,4 +56,4 @@ ENTRYPOINT [ "/app/docker-entrypoint.js" ]
 
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
-CMD [ "node", "dist/server.js" ]
+CMD [ "node", "dist/apps/web/server.js" ]
