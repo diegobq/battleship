@@ -1,0 +1,27 @@
+These are the instructions for the Test that you need to perform for the interview.
+
+
+The test and all the instructions are included in the attached document "FE ASSE Interview_ Battleship Game.pdf".
+
+We encourage you to approach this exercise as you would a real-world coding task. To that end, we want to provide the following guidance regarding AI tools:
+Allowed Use: You are welcome to use any AI tool (e.g., Copilot, Claude, Gemini, Cursor) that you believe will help you complete the exercise.
+Evaluation: The use of AI is not mandatory and will not be a factor in your evaluation.
+Accountability: Any code generated with the assistance of an AI tool will be evaluated as your own.
+Justification: You must be prepared to fully explain and justify the design choices and technical decisions made throughout the assessment. This includes explaining the rationale behind any AI-generated code.
+By 09:00 on the 18th May (1 working days before the interview), you must share your fork with everyone invited to the interview event. This gives interviewers (Oscar Bellon and Alex Riera) 1 day to review your solutions.
+
+You have 1 week to focus on the test, but you won't need that much time to perform it. Align with your manager these days to balance properly.
+
+The interview will be 2 hours long, and its agenda will be:
+
+Introduction & icebreaker (5 minutes)
+
+Solution Review (1 hour 45 minutes). You will explain your solution for each of the tasks, and answer any questions by the interviewers.
+
+Candidate Questions (10 minutes). You will be able to ask any questions you may have about the role, the company, and the team.
+
+The interview will be conducted in English.
+
+Do the test thinking that it is for our platform and production grade. In general, we are more interested in the code and solutions than new libraries. Keep in mind the evaluation matrix.
+
+You will not get the result of the interview immediately. We will contact you on a later date.
