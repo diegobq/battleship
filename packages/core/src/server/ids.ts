@@ -13,5 +13,5 @@ export function newPlayerId(): string {
 }
 
 export function newShipId(): string {
-  return randomUUID().slice(0, 12);
+  return randomUUID().replace(/-/g, '').slice(0, 12);
 }
