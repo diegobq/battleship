@@ -1,33 +1,11 @@
 'use client';
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { ShipPlacement } from '@battleship/core';
-import { GameState, ShipType } from '@battleship/core';
+import { GameState } from '@battleship/core';
 import { useWebSocket } from './useWebSocket';
+import { GameContextValue, ShotEvent } from './types';
 
-export interface ShotEvent {
-  shooterId: string;
-  r: number;
-  c: number;
-  hit: boolean;
-  sunkShipType?: ShipType;
-  scoreAwarded: number;
-  cellStatus: 'hit' | 'miss';
-  at: number;
-}
-
-export interface GameContextValue {
-  state: GameState | null;
-  gameId: string;
-  playerId: string;
-  connection: 'connecting' | 'open' | 'closed' | 'error';
-  lastShot: ShotEvent | null;
-  turnExpiredPlayerId: string | null;
-  errorMessage: string | null;
-  placeFleet: (placements: ShipPlacement[]) => boolean;
-  shoot: (r: number, c: number) => boolean;
-  leaveGame: () => boolean;
-  dismissError: () => void;
-}
+export type { GameContextValue, ShotEvent };
 
 const GameContext = createContext<GameContextValue | null>(null);
 

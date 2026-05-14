@@ -4,7 +4,25 @@ This document records the design rationale behind the Battleship implementation 
 
 ---
 
-## 1. Data Structures & Extensibility
+## Table of Contents
+- [Data Structures and Extensibility](#data-structures-and-extensibility)
+- [Separation of Concerns (FE vs BE)](#separation-of-concerns-fe-vs-be)
+- [API Specification](#api-specification)
+- [Communication Protocol Justification](#communication-protocol-justification)
+- [Server Authority & State Sanitisation](#server-authority-state-sanitisation)
+- [Turn Semantics](#turn-semantics)
+- [Clock & RNG Injection](#clock-rng-injection)
+- [Scoring Engine — Parameterised](#scoring-engine--parameterised)
+- [Real-time Transport: Custom Node Server](#real-time-transport-custom-node-server)
+- [CSS Scoping & Theming](#css-scoping-theming)
+- [In-Memory State Seam](#in-memory-state-seam)
+- [Simplicity & Readability](#simplicity--readability)
+- [UI Type Centralisation](#ui-type-centralisation)
+- [Mobile-first UX](#mobile-first-ux)
+- [Test Strategy](#test-strategy)
+- [Verification](#verification)
+
+## Data Structures and Extensibility
 
 ### Board
 
@@ -73,7 +91,7 @@ The state machine is enforced through pure transitions in `lib/core/game.ts` (`c
 
 ---
 
-## 2. Separation of Concerns (FE vs BE)
+## Separation of Concerns (FE vs BE)
 
 - **Backend** — single source of truth. The `lib/core/` modules contain all game rules; `lib/server/` wraps them with an in-memory registry, a per-game turn-timer manager, and a WebSocket hub. The server validates every action (`validateShot`, fleet placement integrity), advances the state machine, applies the scoring engine, and broadcasts sanitised updates. Clients never compute authoritative state.
 - **Frontend** — strictly presentational. `lib/ui/GameProvider.tsx` opens one WebSocket per game, dispatches messages, and exposes `state`, `lastShot`, `placeFleet`, `shoot`. UI components (`Board`, `ShipPalette`, `Hud/*`, `Effects/*`) read from context, render, and dispatch user intents back through the provider.
@@ -81,7 +99,7 @@ The state machine is enforced through pure transitions in `lib/core/game.ts` (`c
 
 ---
 
-## 3. API Specification
+## API Specification
 
 ### REST
 
@@ -119,7 +137,7 @@ All messages are JSON-parsed and validated via type guards in `lib/server/ws/pro
 
 ---
 
-## 4. Communication Protocol Justification
+## Communication Protocol Justification
 
 **Choice: WebSockets.** Alternatives considered: HTTP polling, Server-Sent Events + REST.
 
@@ -131,7 +149,7 @@ Trade-offs:
 
 ---
 
-## 5. Server Authority & State Sanitisation
+## Server Authority & State Sanitisation
 
 The server is the **only** source of truth. To prevent a client from inspecting opponent ship positions in DevTools (the same payload would otherwise reach the browser), `lib/server/ws/protocol.ts#sanitizeGameStateFor(state, viewerId)` redacts every opponent cell from `'ship'` to `'empty'` before each `GAME_STATE_UPDATE`, and hides opponent ship `positions` until the ship is fully sunk (so the victory screen reveal still works). Hit/miss cells remain public — both players need them for tracking. The sanitisation cost is O(64) per send — negligible.
 
@@ -139,13 +157,13 @@ Security follow-on: this same boundary lets us add per-game rate limits and stri
 
 ---
 
-## 6. Turn Semantics
+## Turn Semantics
 
 The turn **alternates after every shot, regardless of hit or miss**. This is the most common online Battleship variant and keeps streak bonuses tied purely to the shooter's accuracy (rather than "free extra shots" on hits, which compounds the dynamic accuracy bonus in unintuitive ways). This is enforced in `lib/core/rules.ts#nextActivePlayer`, which is an alias for `getOpponentId` — the design choice is encoded as documentation, not branching logic.
 
 ---
 
-## 7. Clock & RNG Injection
+## Clock & RNG Injection
 
 All time and randomness flow through interfaces:
 
@@ -160,7 +178,7 @@ No `Date.now()` or `Math.random()` call appears inside `lib/core/**`. The CLAUDE
 
 ---
 
-## 8. Scoring Engine — Parameterised
+## Scoring Engine — Parameterised
 
 `lib/core/scoring.ts` exposes `awardScore(input)` as the orchestrator entry point. The Elite scoring curve is parameterised by an `EliteConfig`:
 
@@ -184,7 +202,7 @@ Modes:
 
 ---
 
-## 9. Real-time Transport: Custom Node Server
+## Real-time Transport: Custom Node Server
 
 Next.js Route Handlers cannot portably upgrade a WebSocket — App Router is request/response oriented. `server.ts` at the repo root wraps Next.js (`next({ dev }).prepare()` then `getRequestHandler()`) and adds a `ws.WebSocketServer({ noServer: true })`. The HTTP server's `upgrade` event handler **only intercepts `/api/game/stream`**, letting Next.js Turbopack HMR keep its own upgrade path untouched.
 
@@ -194,7 +212,7 @@ Future migration path: when scaling out, the WebSocket fan-out moves to a sideca
 
 ---
 
-## 10. CSS Scoping & Theming
+## CSS Scoping & Theming
 
 Combined approach:
 
@@ -214,13 +232,13 @@ This is the explicit "Christmas skin" answer to the spec's CSS-scoping requireme
 
 ---
 
-## 11. In-Memory State Seam
+## In-Memory State Seam
 
 `lib/server/registry.ts` defines a `GameRegistry` interface (`create / get / update / list / listJoinable / delete`) and ships an `InMemoryGameRegistry` implementation pinned to `globalThis`. The interface is the seam for Exercise 3 to swap in a Redis-backed implementation behind the same shape, without changing any handler, route, or core code. The Node.js single-threaded event loop guarantees atomicity for in-memory updates, so no locking is needed at this stage.
 
 ---
 
-## 12. Simplicity & Readability
+## Simplicity & Readability
 
 Code organisation follows strict separation:
 
@@ -234,17 +252,25 @@ app/           → Next.js App Router pages + components
 
 Every function in `lib/core/` is **≤ 50 lines**, every module **≤ 300 lines** (CLAUDE.md hard limits). The previous monolithic `processShot` (~84 lines) is now five composable functions: `validateShot` → `applyShot` + `applyHitToShips` → `awardScore` → `applyShotResult`. Reading each file gives an obvious sense of its single responsibility.
 
-Tests live next to the code they cover (`__tests__/`), one file per module, with no shared mutable state between cases — every `it()` builds its own world. **176 tests** across 12 files, all deterministic.
+Tests live next to the code they cover (`__tests__/`), one file per module, with no shared mutable state between cases — every `it()` builds its own world. **180 tests** across 12 files, all deterministic.
 
 ---
 
-## 13. Mobile-first UX
+## UI Type Centralisation
+
+Shared UI types (`PlacementState`, `PlacementAction`, `GameContextValue`, `ShotEvent`, `WsConnectionState`) live in a single `lib/ui/types.ts`. Each source file (`GameProvider.tsx`, `placementReducer.ts`, `useWebSocket.ts`) re-exports only what it originally defined; imports now flow from `./types` rather than the implementation file. A barrel `lib/ui/index.ts` aggregates all public UI exports so consumers use one import path.
+
+**Rationale:** colocating shared shapes prevents circular-import drift as the UI grows, and makes it straightforward for multiple teams to add new message types without touching the provider or hook internals. Single-component props remain colocated (not in `types.ts`) to avoid premature generalisation.
+
+---
+
+## Mobile-first UX
 
 Tailwind responsive utilities default to mobile sizing; `min-width: sm` (640 px) breakpoints scale up. Placement uses **Pointer Events on a click-to-place model** rather than HTML5 drag-and-drop — HTML5 DnD is unreliable on iOS Safari, while Pointer Events behave identically across touch, mouse, and pen.
 
 ---
 
-## 14. Test Strategy
+## Test Strategy
 
 - Vitest, V8 coverage, `@/*` alias mirrored in `vitest.config.ts`.
 - 176 tests across `lib/core` (game + board + scoring + rules + fleet + clock + rng), `lib/server` (registry, turn timer with `vi.useFakeTimers()`, WS protocol + sanitisation), `lib/api` (DTO guards), `lib/ui` (placementReducer).
@@ -253,7 +279,7 @@ Tailwind responsive utilities default to mobile sizing; `min-width: sm` (640 px)
 
 ---
 
-## 15. Verification
+## Verification
 
 ```bash
 pnpm test            # all 176 tests

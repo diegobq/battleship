@@ -1,7 +1,8 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { WsConnectionState } from './types';
 
-export type WsConnectionState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
+export type { WsConnectionState };
 
 export interface UseWebSocketOptions {
   url: string | null;

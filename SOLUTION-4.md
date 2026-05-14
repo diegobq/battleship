@@ -1,5 +1,10 @@
 # Exercise 4: Spectator Mode
 
+## Table of Contents
+- [Architecture Design](#architecture-design)
+- [Communication Pattern Justification](#communication-pattern-justification)
+- [Monitoring Strategy](#monitoring-strategy)
+
 ## Architecture Design
 
 ### Class & Sequence Diagrams

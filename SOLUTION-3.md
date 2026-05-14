@@ -1,6 +1,10 @@
 # Exercise 3: Manage Concurrency and Disconnections
 
-## 1. Concurrent Requests in the Lobby
+## Table of Contents
+- [Concurrent Requests in the Lobby](#concurrent-requests-in-the-lobby)
+- [Graceful User Disconnection During Game](#graceful-user-disconnection-during-game)
+
+## Concurrent Requests in the Lobby
 **Challenge:** Two or more players click "Join Game" for the exact same match simultaneously, potentially exceeding the 2-player limit.
 
 ### Fast Iteration (MVP)

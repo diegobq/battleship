@@ -1,19 +1,8 @@
 import { applyPlacement, canPlace, createEmptyGrid } from '@battleship/core';
 import { BoardCellStatus, Coordinate, Ship, ShipOrientation } from '@battleship/core';
+import { PlacementAction, PlacementState } from './types';
 
-export interface PlacementState {
-  grid: BoardCellStatus[][];
-  ships: Ship[];
-  selectedShipId: string | null;
-  orientation: ShipOrientation;
-}
-
-export type PlacementAction =
-  | { type: 'SELECT'; shipId: string }
-  | { type: 'ROTATE' }
-  | { type: 'PLACE'; r: number; c: number }
-  | { type: 'REMOVE'; shipId: string }
-  | { type: 'RESET' };
+export type { PlacementAction, PlacementState };
 
 export function initPlacementState(initialShips: Ship[]): PlacementState {
   const reset = initialShips.map((s) => ({
