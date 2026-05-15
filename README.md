@@ -66,3 +66,9 @@ pnpm lint
 | 2 | Test suite — strategy, coverage, and rationale | [SOLUTION-2.md](SOLUTION-2.md) |
 | 3 | Design — concurrency and disconnection handling | [SOLUTION-3.md](SOLUTION-3.md) |
 | 4 | Design — Spectator Mode (live + replay) | [SOLUTION-4.md](SOLUTION-4.md) |
+
+---
+
+## Production Readiness
+
+A catalogue of gaps outside the assessment scope (i18n, observability, security headers, CI/CD, etc.) with priorities and recommended approaches: [PRODUCTION-CHECKLIST.md](PRODUCTION-CHECKLIST.md).
