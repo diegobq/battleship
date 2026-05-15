@@ -10,6 +10,7 @@ export async function GET() {
     return {
       id: g.id,
       hostName: g.players[hostId].name,
+      gameName: g.config.name,
       mode: g.config.mode,
       fleet: g.config.fleet,
       turnTimerMs: g.config.turnTimerMs,

@@ -19,6 +19,7 @@ export async function POST(req: Request) {
         mode: input.mode,
         fleet: input.fleet ?? defaultFleetConfig(),
         turnTimerMs: input.turnTimerMs ?? 60_000,
+        name: input.gameName,
       },
       host,
       clock: makeSystemClock(),

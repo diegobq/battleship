@@ -33,13 +33,10 @@ export default function PlayView() {
           consecutiveHits={me.consecutiveHits}
           eliteConfig={state.config.elite}
         />
-      </div>
-      <GameResultBanner finished={finished} iWon={iWon} />
-      <div className="flex justify-end">
         <Link
           href="/"
           onClick={finished ? undefined : leaveGame}
-          className="rounded px-3 py-2 text-sm"
+          className="rounded px-3 py-2 text-sm ml-auto"
           style={{
             background: "var(--surface-muted)",
             color: "var(--brand-danger)",
@@ -48,6 +45,7 @@ export default function PlayView() {
           {finished ? "Back to lobby" : "Leave game"}
         </Link>
       </div>
+      <GameResultBanner finished={finished} iWon={iWon} />
       <BoardsSection
         me={me}
         opponent={opponent}
@@ -97,11 +95,13 @@ function BoardsSection({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <section>
-        <h2 className="text-sm uppercase opacity-70 mb-2">My board</h2>
+        <h2 className="text-sm uppercase opacity-70 mb-2">{me.name}</h2>
         <Board grid={me.grid} showShips disabled />
       </section>
       <section>
-        <h2 className="text-sm uppercase opacity-70 mb-2">Enemy board</h2>
+        <h2 className="text-sm uppercase opacity-70 mb-2">
+          {opponent?.name ?? "Waiting…"}
+        </h2>
         {opponent && (
           <Board
             grid={opponent.grid}

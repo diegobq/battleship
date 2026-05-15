@@ -88,10 +88,12 @@ export default function LobbyTable() {
               className="rounded border border-[var(--surface-elevated)] bg-[var(--surface-muted)] p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
             >
               <div className="flex flex-col">
-                <span className="font-medium">{g.hostName}</span>
+                <span className="font-medium">
+                  {g.gameName ?? `${g.hostName}'s game`}
+                </span>
                 <span className="text-xs opacity-70">
-                  Mode: {g.mode} · Timer: {Math.round(g.turnTimerMs / 1000)}s ·
-                  ID: {g.id}
+                  Host: {g.hostName} · Mode: {g.mode} · Timer:{" "}
+                  {Math.round(g.turnTimerMs / 1000)}s · ID: {g.id}
                 </span>
               </div>
               <button

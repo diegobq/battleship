@@ -9,6 +9,7 @@ const ALLOWED_SHIP_TYPES: readonly ShipType[] = [
 ];
 
 const MAX_PLAYER_NAME = 32;
+const MAX_GAME_NAME = 64;
 const MAX_GAME_ID = 64;
 const MAX_FLEET_COUNT_PER_TYPE = 10;
 const MIN_TURN_TIMER_MS = 5_000;
@@ -17,6 +18,7 @@ const MAX_TURN_TIMER_MS = 600_000;
 export interface CreateGameRequest {
   mode: GameMode;
   playerName: string;
+  gameName?: string;
   fleet?: FleetConfig;
   turnTimerMs?: number;
 }
@@ -29,6 +31,7 @@ export interface JoinGameRequest {
 export interface LobbyGameDto {
   id: string;
   hostName: string;
+  gameName?: string;
   mode: GameMode;
   fleet: FleetConfig;
   turnTimerMs: number;
@@ -83,9 +86,28 @@ export function parseCreateGameRequest(body: unknown): CreateGameRequest {
   return {
     mode: mode as GameMode,
     playerName,
+    gameName: parseOptionalString(body.gameName, "gameName", MAX_GAME_NAME),
     fleet: parseFleet(body.fleet),
     turnTimerMs: parseTurnTimerMs(body.turnTimerMs),
   };
+}
+
+function parseOptionalString(
+  raw: unknown,
+  key: string,
+  max: number,
+): string | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (typeof raw !== "string" || raw.trim().length === 0) return undefined;
+  const trimmed = raw.trim();
+  if (trimmed.length > max) {
+    throw new ApiError(
+      400,
+      "BAD_REQUEST",
+      `'${key}' must be at most ${max} characters.`,
+    );
+  }
+  return trimmed;
 }
 
 function parseFleet(raw: unknown): FleetConfig | undefined {

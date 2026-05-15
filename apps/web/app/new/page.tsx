@@ -27,6 +27,7 @@ const MODES: { value: GameMode; label: string; description: string }[] = [
 export default function NewGamePage() {
   const router = useRouter();
   const [playerName, setPlayerName] = useState("");
+  const [gameName, setGameName] = useState("");
   const [mode, setMode] = useState<GameMode>("Classic");
   const [cruiser, setCruiser] = useState(1);
   const [destroyer, setDestroyer] = useState(1);
@@ -50,6 +51,7 @@ export default function NewGamePage() {
         body: JSON.stringify({
           mode,
           playerName: playerName.trim(),
+          gameName: gameName.trim() || undefined,
           fleet: {
             Cruiser: cruiser,
             Destroyer: destroyer,
@@ -85,6 +87,17 @@ export default function NewGamePage() {
             onChange={(e) => setPlayerName(e.target.value)}
             maxLength={32}
             placeholder="e.g. Captain Turing"
+            className="rounded px-3 py-2 bg-[var(--surface-muted)] border border-[var(--surface-elevated)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="opacity-80">Game name (optional)</span>
+          <input
+            value={gameName}
+            onChange={(e) => setGameName(e.target.value)}
+            maxLength={64}
+            placeholder="e.g. Friday Night Battle"
             className="rounded px-3 py-2 bg-[var(--surface-muted)] border border-[var(--surface-elevated)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
           />
         </label>

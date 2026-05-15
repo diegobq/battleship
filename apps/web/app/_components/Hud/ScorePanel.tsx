@@ -17,7 +17,6 @@ export default function ScorePanel({ state, selfId }: ScorePanelProps) {
         name={self.name}
         score={self.score}
         active={state.activePlayerId === selfId}
-        mine
       />
       {opponent && (
         <ScoreBox
@@ -34,12 +33,10 @@ function ScoreBox({
   name,
   score,
   active,
-  mine = false,
 }: {
   name: string;
   score: number;
   active: boolean;
-  mine?: boolean;
 }) {
   return (
     <div
@@ -51,7 +48,6 @@ function ScoreBox({
           : "2px solid transparent",
       }}
     >
-      <span className="text-xs opacity-70">{mine ? "You" : "Opponent"}</span>
       <span className="font-semibold text-sm truncate">{name}</span>
       <span
         className="text-2xl font-bold tabular-nums"
