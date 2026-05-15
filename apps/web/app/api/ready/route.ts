@@ -1,14 +1,14 @@
-import { getGameRegistry, getWebSocketHub } from "@battleship/core";
+import { getHub, getRegistry } from "@battleship/core";
 
 export async function GET() {
   try {
-    const registry = getGameRegistry();
-    const hub = getWebSocketHub();
+    const registry = getRegistry();
+    const hub = getHub();
 
     if (!registry || !hub) {
       return Response.json(
         { status: "not_ready", reason: "Singletons not initialized" },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -17,10 +17,9 @@ export async function GET() {
     return Response.json(
       {
         status: "error",
-        reason:
-          error instanceof Error ? error.message : "Unknown error",
+        reason: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 503 }
+      { status: 503 },
     );
   }
 }
