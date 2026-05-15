@@ -66,6 +66,11 @@ export function getRegistry(): GameRegistry {
   return g[GLOBAL_KEY]!;
 }
 
+export function isRegistryInitialized(): boolean {
+  const g = globalThis as unknown as GlobalWithRegistry;
+  return g[GLOBAL_KEY] !== undefined;
+}
+
 // Test-only helper. Removing the pin forces the next getRegistry() call to construct
 // a fresh instance — keeps individual test cases independent of each other.
 export function __resetRegistryForTests(): void {

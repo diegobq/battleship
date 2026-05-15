@@ -102,6 +102,11 @@ export function getHub(): WebSocketHub {
   return g[GLOBAL_KEY]!;
 }
 
+export function isHubInitialized(): boolean {
+  const g = globalThis as unknown as GlobalWithHub;
+  return g[GLOBAL_KEY] !== undefined;
+}
+
 export function __resetHubForTests(): void {
   const g = globalThis as unknown as GlobalWithHub;
   delete g[GLOBAL_KEY];
