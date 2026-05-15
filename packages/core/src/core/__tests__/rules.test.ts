@@ -8,6 +8,11 @@ import {
   isGameOver,
   nextActivePlayer,
   validateShot,
+  resolveWinCondition,
+  resolveTurnStrategy,
+  allShipsSunkCondition,
+  alternatingTurnStrategy,
+  hitKeepsTurnStrategy,
 } from "../rules";
 import { GameState, PlayerState, Ship } from "../types";
 
@@ -176,5 +181,71 @@ describe("isGameOver", () => {
 
   it("returns false when the opponent has no ships at all", () => {
     expect(isGameOver([])).toBe(false);
+  });
+});
+
+describe("resolveWinCondition", () => {
+  it("returns a strategy for every game mode", () => {
+    expect(resolveWinCondition("Classic")).toBeDefined();
+    expect(resolveWinCondition("Risk")).toBeDefined();
+    expect(resolveWinCondition("Elite")).toBeDefined();
+  });
+});
+
+describe("allShipsSunkCondition", () => {
+  it("returns true when all ships are sunk", () => {
+    const sunk: Ship = {
+      id: "s",
+      type: "Submarine",
+      length: 1,
+      hits: 1,
+      positions: [],
+      placed: true,
+    };
+    expect(allShipsSunkCondition.isGameOver([sunk], {} as GameState)).toBe(
+      true,
+    );
+  });
+
+  it("returns false when any ship is still afloat", () => {
+    const alive: Ship = {
+      id: "s",
+      type: "Submarine",
+      length: 1,
+      hits: 0,
+      positions: [],
+      placed: true,
+    };
+    expect(allShipsSunkCondition.isGameOver([alive], {} as GameState)).toBe(
+      false,
+    );
+  });
+});
+
+describe("resolveTurnStrategy", () => {
+  it("returns a strategy for every game mode", () => {
+    expect(resolveTurnStrategy("Classic")).toBeDefined();
+    expect(resolveTurnStrategy("Risk")).toBeDefined();
+    expect(resolveTurnStrategy("Elite")).toBeDefined();
+  });
+});
+
+describe("alternatingTurnStrategy", () => {
+  it("always returns the opponent regardless of hit", () => {
+    const game = makeGame();
+    expect(alternatingTurnStrategy.nextPlayer(game, "p1", true)).toBe("p2");
+    expect(alternatingTurnStrategy.nextPlayer(game, "p1", false)).toBe("p2");
+  });
+});
+
+describe("hitKeepsTurnStrategy", () => {
+  it("returns the shooter when it is a hit", () => {
+    const game = makeGame();
+    expect(hitKeepsTurnStrategy.nextPlayer(game, "p1", true)).toBe("p1");
+  });
+
+  it("returns the opponent when it is a miss", () => {
+    const game = makeGame();
+    expect(hitKeepsTurnStrategy.nextPlayer(game, "p1", false)).toBe("p2");
   });
 });

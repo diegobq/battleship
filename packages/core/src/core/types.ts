@@ -42,6 +42,7 @@ export interface GameConfig {
   mode: GameMode;
   fleet: FleetConfig;
   turnTimerMs: number;
+  boardSize?: number; // defaults to BOARD_SIZE (8) when absent
   elite?: Partial<EliteConfig>;
 }
 

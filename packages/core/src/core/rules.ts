@@ -1,6 +1,6 @@
 import { areAllShipsSunk, isInBounds } from "./board";
 import { Rng } from "./rng";
-import { GameState, Ship } from "./types";
+import { GameMode, GameState, Ship } from "./types";
 
 export class GameRuleError extends Error {
   constructor(
@@ -64,14 +64,15 @@ export function validateShot(
   if (game.activePlayerId !== shooterId) {
     throw new GameRuleError("WRONG_TURN", `Not ${shooterId}'s turn.`);
   }
-  if (!isInBounds(r, c)) {
+  const opponentId = getOpponentId(game, shooterId);
+  const opponentGrid = game.players[opponentId].grid;
+  if (!isInBounds(r, c, opponentGrid.length)) {
     throw new GameRuleError(
       "OUT_OF_BOUNDS",
       `Shot out of bounds: (${r}, ${c}).`,
     );
   }
-  const opponentId = getOpponentId(game, shooterId);
-  const cell = game.players[opponentId].grid[r][c];
+  const cell = opponentGrid[r][c];
   if (cell === "hit" || cell === "miss") {
     throw new GameRuleError(
       "ALREADY_SHOT",
@@ -82,4 +83,50 @@ export function validateShot(
 
 export function isGameOver(opponentShips: Ship[]): boolean {
   return areAllShipsSunk(opponentShips);
+}
+
+// ─── Win Condition Strategy ───────────────────────────────────────────────────
+// Extension point: implement this interface to add a custom win condition.
+
+export interface WinConditionStrategy {
+  isGameOver(opponentShips: Ship[], state: GameState): boolean;
+}
+
+export const allShipsSunkCondition: WinConditionStrategy = {
+  isGameOver: (ships) => areAllShipsSunk(ships),
+};
+
+export function resolveWinCondition(mode: GameMode): WinConditionStrategy {
+  switch (mode) {
+    case "Classic":
+    case "Risk":
+    case "Elite":
+      return allShipsSunkCondition;
+  }
+}
+
+// ─── Turn Strategy ────────────────────────────────────────────────────────────
+// Extension point: implement this interface to change turn progression rules.
+
+export interface TurnStrategy {
+  nextPlayer(game: GameState, shooterId: string, hit: boolean): string;
+}
+
+export const alternatingTurnStrategy: TurnStrategy = {
+  nextPlayer: (game, shooterId) => getOpponentId(game, shooterId),
+};
+
+// Variant: shooter keeps the turn on a hit (common Battleship rule variant).
+export const hitKeepsTurnStrategy: TurnStrategy = {
+  nextPlayer: (game, shooterId, hit) =>
+    hit ? shooterId : getOpponentId(game, shooterId),
+};
+
+export function resolveTurnStrategy(mode: GameMode): TurnStrategy {
+  switch (mode) {
+    case "Classic":
+    case "Risk":
+    case "Elite":
+      return alternatingTurnStrategy;
+  }
 }

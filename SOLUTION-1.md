@@ -112,6 +112,22 @@ The architecture is designed for Exercise 3 (concurrency) and Exercise 4 (specta
 - **`Clock` and `Rng` interfaces** — injectable time and randomness for testability and future deterministic replay
 - **`WebSocketHub` interface** — prep for sidecar pub/sub or managed service (e.g., Redis Streams)
 
+### Further Extensibility Seams
+
+Three additional gaps were identified and refactored using the same Strategy-pattern philosophy as the scoring engine.
+
+**Board size** (`GameConfig.boardSize`, default 8) — `createEmptyGrid(size)` and `isInBounds(r, c, size)` now accept an optional `size` parameter; `canPlace` and `applyShot` derive the size from `grid.length`. A "Blitz" mode on a 6×6 board requires only a different `GameConfig.boardSize` value — no source edits.
+
+**Win condition** (`WinConditionStrategy` in `rules.ts`) — the interface exposes `isGameOver(opponentShips, state)` and is the extension point for custom end conditions (points race, time limit, etc.). `resolveWinCondition(mode)` is an exhaustive-switch factory that returns `allShipsSunkCondition` for all current modes; adding a new `GameMode` without a factory case is a TypeScript compile error. `processShot` in `game.ts` delegates to the resolved strategy.
+
+**Turn progression** (`TurnStrategy` in `rules.ts`) — the interface exposes `nextPlayer(game, shooterId, hit)`. Two concrete implementations ship: `alternatingTurnStrategy` (current default — turns always alternate) and `hitKeepsTurnStrategy` (shooter keeps the turn on a hit, a common Battleship variant). `resolveTurnStrategy(mode)` uses the same exhaustive-switch pattern; `applyShotResult` in `game.ts` consults it.
+
+Two further gaps were identified but left as design seams rather than implementations:
+
+**Composable placement rules** — `canPlace()` currently enforces bounds + no-collision inline. A `PlacementRule[]` composition pattern (`boundsRule`, `collisionRule`, `adjacencyRule`) would make new constraints addable without editing the function. Implementing it now would require updating the `canPlace` call signature used in tests even to preserve identical behaviour — the trade-off is not justified at this scale. The `cells?: Coordinate[]` field in `ShipDefinition` is the analogous seam for non-linear ship shapes.
+
+**Open ship type registry** — `ShipType` is a closed union, but `buildFleet(config, idFactory, definitions?)` already accepts injectable `definitions`, making the composition mechanism available. Widening `ShipType` to `string` would break `FleetConfig = Partial<Record<ShipType, number>>` and the DTO allowlist in `dto.ts`. The right long-term design is a `ShipTypeRegistry` service with an `isKnownType` guard; the trade-off (compile-time safety vs runtime extensibility) favours the current closed union at this project scale.
+
 ---
 
 ## Data Structures and Extensibility

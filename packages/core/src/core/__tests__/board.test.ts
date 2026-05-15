@@ -262,3 +262,35 @@ describe("cloneGrid", () => {
     expect(grid[0][0]).toBe("empty");
   });
 });
+
+describe("createEmptyGrid — custom board size", () => {
+  it("creates a 6x6 grid when size=6", () => {
+    const grid = createEmptyGrid(6);
+    expect(grid.length).toBe(6);
+    for (const row of grid) expect(row.length).toBe(6);
+  });
+});
+
+describe("isInBounds — custom board size", () => {
+  it("accepts coordinates within the custom size", () => {
+    expect(isInBounds(0, 0, 6)).toBe(true);
+    expect(isInBounds(5, 5, 6)).toBe(true);
+  });
+
+  it("rejects coordinates at or beyond the custom size", () => {
+    expect(isInBounds(6, 0, 6)).toBe(false);
+    expect(isInBounds(0, 6, 6)).toBe(false);
+  });
+});
+
+describe("canPlace — honours grid dimensions as board size", () => {
+  it("rejects placement that would exceed a 6x6 grid", () => {
+    const grid = createEmptyGrid(6);
+    expect(canPlace(grid, { r: 4, c: 0 }, 3, "vertical")).toBe(false);
+  });
+
+  it("accepts placement that fits within a 6x6 grid", () => {
+    const grid = createEmptyGrid(6);
+    expect(canPlace(grid, { r: 3, c: 0 }, 3, "vertical")).toBe(true);
+  });
+});

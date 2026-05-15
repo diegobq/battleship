@@ -1,4 +1,5 @@
 import {
+  BOARD_SIZE,
   applyShot,
   areAllShipsPlaced,
   createEmptyGrid,
@@ -12,7 +13,8 @@ import {
   GameRuleError,
   decideFirstPlayer,
   getOpponentId,
-  isGameOver,
+  resolveWinCondition,
+  resolveTurnStrategy,
   validateShot,
 } from "./rules";
 import { awardScore } from "./scoring";
@@ -34,11 +36,15 @@ export interface ShipPlacement {
   orientation: ShipOrientation;
 }
 
-export function createPlayer(id: string, name: string): PlayerState {
+export function createPlayer(
+  id: string,
+  name: string,
+  boardSize = BOARD_SIZE,
+): PlayerState {
   return {
     id,
     name,
-    grid: createEmptyGrid(),
+    grid: createEmptyGrid(boardSize),
     ships: [],
     score: 0,
     consecutiveHits: 0,
@@ -206,7 +212,8 @@ export function processShot(
     eliteConfig: game.config.elite,
   });
 
-  const gameOver = isGameOver(shipUpdate.ships);
+  const winCondition = resolveWinCondition(game.config.mode);
+  const gameOver = winCondition.isGameOver(shipUpdate.ships, game);
   const nextGame = applyShotResult({
     game,
     shooterId,
@@ -218,6 +225,7 @@ export function processShot(
     scoreAwarded,
     consecutiveHits,
     gameOver,
+    hit: shot.hit,
     clock: deps.clock,
   });
 
@@ -279,6 +287,7 @@ function applyShotResult(args: {
   scoreAwarded: number;
   consecutiveHits: number;
   gameOver: boolean;
+  hit: boolean;
   clock: Clock;
 }): GameState {
   const newScore = Math.max(0, args.shooter.score + args.scoreAwarded);
@@ -292,11 +301,15 @@ function applyShotResult(args: {
     grid: args.newOpponentGrid,
     ships: args.newOpponentShips,
   };
+  const turnStrategy = resolveTurnStrategy(args.game.config.mode);
+  const nextActiveId = args.gameOver
+    ? null
+    : turnStrategy.nextPlayer(args.game, args.shooterId, args.hit);
   const now = args.clock.now();
   return {
     ...args.game,
     players: { [args.shooterId]: newShooter, [args.opponentId]: newOpponent },
-    activePlayerId: args.gameOver ? null : args.opponentId,
+    activePlayerId: nextActiveId,
     lastActionTime: now,
     turnDeadlineAt: args.gameOver ? null : now + args.game.config.turnTimerMs,
     status: args.gameOver ? "finished" : "playing",

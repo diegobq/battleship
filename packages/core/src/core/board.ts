@@ -2,11 +2,11 @@ import { BoardCellStatus, Coordinate, Ship, ShipOrientation } from "./types";
 
 export const BOARD_SIZE = 8;
 
-export function createEmptyGrid(): BoardCellStatus[][] {
+export function createEmptyGrid(size = BOARD_SIZE): BoardCellStatus[][] {
   const grid: BoardCellStatus[][] = [];
-  for (let r = 0; r < BOARD_SIZE; r++) {
+  for (let r = 0; r < size; r++) {
     const row: BoardCellStatus[] = [];
-    for (let c = 0; c < BOARD_SIZE; c++) {
+    for (let c = 0; c < size; c++) {
       row.push("empty");
     }
     grid.push(row);
@@ -18,8 +18,8 @@ export function cloneGrid(grid: BoardCellStatus[][]): BoardCellStatus[][] {
   return grid.map((row) => [...row]);
 }
 
-export function isInBounds(r: number, c: number): boolean {
-  return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
+export function isInBounds(r: number, c: number, size = BOARD_SIZE): boolean {
+  return r >= 0 && r < size && c >= 0 && c < size;
 }
 
 export function expandShipCells(
@@ -43,9 +43,10 @@ export function canPlace(
   length: number,
   orientation: ShipOrientation,
 ): boolean {
+  const size = grid.length;
   const cells = expandShipCells(start, length, orientation);
   for (const { r, c } of cells) {
-    if (!isInBounds(r, c)) return false;
+    if (!isInBounds(r, c, size)) return false;
     if (grid[r][c] !== "empty") return false;
   }
   return true;
@@ -74,7 +75,7 @@ export function applyShot(
   r: number,
   c: number,
 ): { grid: BoardCellStatus[][]; hit: boolean; alreadyShot: boolean } {
-  if (!isInBounds(r, c)) {
+  if (!isInBounds(r, c, grid.length)) {
     throw new Error(`Shot out of bounds: (${r}, ${c})`);
   }
   const cell = grid[r][c];
