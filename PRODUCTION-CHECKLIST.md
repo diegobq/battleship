@@ -15,7 +15,6 @@
 - [Observability](#observability)
 - [Reliability](#reliability)
 - [Security](#security)
-- [Persistence & Scale](#persistence--scale)
 - [Frontend UX](#frontend-ux)
 - [Internationalisation](#internationalisation)
 - [SEO & Discoverability](#seo--discoverability)
@@ -43,16 +42,6 @@
   - Impact: silent failures in production. The team will not know an error happened until a user reports it.
   - Approach: Sentry SDK on both server (`@sentry/node`) and client (`@sentry/nextjs`). Tag events with `gameId` and `mode`. Sample at 100% initially; tune later.
 
-- **Metrics / tracing** — **P1**
-  - Gap: no instrumentation. Time-to-process-action (the KPI called out in SOLUTION-4) is not measured.
-  - Impact: cannot prove SLOs (reflex-bonus latency, fan-out latency) or detect regression.
-  - Approach: OpenTelemetry SDK + OTLP exporter; instrument WS message handlers, `processShot`, `awardScore`. Export to Grafana Tempo / Datadog / Honeycomb.
-
-- **Event-loop lag monitor** — **P1**
-  - Gap: nothing reports event-loop lag (the SOLUTION-4 player-protection KPI).
-  - Impact: spectator scaling cannot be validated without this signal.
-  - Approach: `@isaacs/event-loop-lag` or `perf_hooks.monitorEventLoopDelay`, exported as a histogram via the metrics path above.
-
 ---
 
 ## Reliability
@@ -61,11 +50,6 @@
   - Gap: `apps/web/server.ts` has no `SIGTERM` / `SIGINT` handler. Connections are dropped abruptly on deploy.
   - Impact: in-flight WS messages lost; players see "Connection lost" mid-game on every release.
   - Approach: on `SIGTERM`, stop accepting new WS upgrades, broadcast a `SHUTDOWN_NOTICE` to active sessions, drain for ~10 s, then `server.close()`.
-
-- **WS reconnect UX** — **P1**
-  - Gap: `lib/ui/useWebSocket.ts` retries with backoff but the UI shows no banner during the gap.
-  - Impact: a flaky network looks like the game has hung.
-  - Approach: surface `WsConnectionState` in a banner toast — "Reconnecting…" then auto-dismiss on success. Pair with the disconnection design in SOLUTION-3.
 
 - **Idempotent client retries** — **P2**
   - Gap: `POST /api/game/create` and `/join` are not idempotent; a double-click could create two games.
@@ -105,25 +89,6 @@
   - Gap: player names are length-capped at 32 (`packages/core/src/api/dto.ts`) but not Unicode-normalised; emoji and zero-width characters pass through.
   - Impact: spoofed identical-looking names; rendering edge cases.
   - Approach: NFKC-normalise and strip zero-width / RTL-override codepoints before persisting.
-
----
-
-## Persistence & Scale
-
-- **Redis-backed `GameRegistry`** — **P0**
-  - Gap: `packages/core/src/server/registry.ts` is in-memory only. A restart loses every active game.
-  - Impact: zero-downtime deploys impossible; multi-instance horizontal scaling impossible.
-  - Approach: implement `RedisGameRegistry` behind the existing `GameRegistry` interface (seam called out in SOLUTION-1). Use `WATCH`/`MULTI` for the join-race scenario described in SOLUTION-3.
-
-- **WS fan-out via pub/sub** — **P1**
-  - Gap: WS broadcasts route through the local `Hub` only. Two instances cannot share a game.
-  - Impact: sticky sessions become mandatory, capping horizontal scale.
-  - Approach: Redis Pub/Sub (or NATS) channel per `gameId`; each instance subscribes and rebroadcasts to its local sockets. Aligned with SOLUTION-4 spectator architecture.
-
-- **Snapshot/recovery on restart** — **P2**
-  - Gap: even with Redis, there is no warm-recovery story for in-flight turn timers.
-  - Impact: a deploy mid-turn could grant a free timeout to a player.
-  - Approach: persist `turnDeadlineAt` to Redis on every transition; on boot, rehydrate timers from Redis state.
 
 ---
 
@@ -330,11 +295,6 @@
 
 ## Testing Maturity
 
-- **E2E tests (Playwright)** — **P1**
-  - Gap: 180 unit/integration tests, zero browser-level tests.
-  - Impact: visual regressions and full-game flows pass review unverified.
-  - Approach: Playwright with a two-context fixture (one per player); cover the lobby → placement → match → end-screen happy path on Elite, Classic, Risk.
-
 - **Accessibility tests** — **P1**
   - Gap: ARIA roles are present but never asserted.
   - Impact: a refactor can silently break a11y.
@@ -397,6 +357,6 @@
 
 ## Summary by priority
 
-- **P0 (must-have before public launch):** structured logging, error tracking, graceful shutdown, signed sessions, rate limiting, security headers, dependency audit in CI, Redis-backed registry, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
-- **P1 (polished v1):** metrics/tracing, event-loop lag, WS reconnect UX, CSRF, input normalisation, WS pub/sub fan-out, toast system, screen-reader announcements, theme switcher UI, i18n + plurals, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, preview deploys, Prettier + Husky, semver, ToS, Playwright + axe, load tests, runbook.
-- **P2 (future):** idempotent retries, snapshot/recovery, sound + haptics, safe-area insets, optimistic UI, RTL, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, commitlint, CHANGELOG, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
+- **P0 (must-have before public launch):** structured logging, error tracking, graceful shutdown, signed sessions, rate limiting, security headers, dependency audit in CI, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
+- **P1 (polished v1):** CSRF, input normalisation, toast system, screen-reader announcements, theme switcher UI, i18n + plurals, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, Prettier + Husky, semver, ToS, accessibility tests, WS load tests, runbook.
+- **P2 (future):** idempotent retries, sound + haptics, safe-area insets, optimistic UI, RTL, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, commitlint, CHANGELOG, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
