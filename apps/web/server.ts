@@ -16,6 +16,16 @@ const HOSTNAME = process.env.HOSTNAME ?? "localhost";
 const WS_PATH = "/api/game/stream";
 const dev = process.env.NODE_ENV !== "production";
 
+function isOriginAllowed(origin: string | undefined): boolean {
+  const raw = process.env.ALLOWED_ORIGINS ?? "";
+  if (dev && !raw) return true; // allow all in development when not explicitly configured
+  return raw
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean)
+    .includes(origin ?? "");
+}
+
 async function start(): Promise<void> {
   const app = next({ dev, hostname: HOSTNAME, port: PORT });
   await app.prepare();
@@ -40,6 +50,11 @@ async function start(): Promise<void> {
     (req: IncomingMessage, socket: Socket, head: Buffer) => {
       const pathname = parse(req.url ?? "/").pathname;
       if (pathname !== WS_PATH) return; // let Next.js HMR handle other upgrades
+      if (!isOriginAllowed(req.headers.origin)) {
+        socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+        socket.destroy();
+        return;
+      }
       wss.handleUpgrade(req, socket, head, (ws) =>
         wss.emit("connection", ws, req),
       );

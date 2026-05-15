@@ -273,6 +273,8 @@ Next.js Route Handlers cannot portably upgrade a WebSocket — App Router is req
 
 Future migration path: when scaling out, the WebSocket fan-out moves to a sidecar (separate Node service or managed pub/sub), and the registry interface is satisfied by a Redis implementation. This is the lead-in for Exercise 3 (concurrency) and Exercise 4 (spectator mode).
 
+**WebSocket origin allowlist:** The `upgrade` handler now validates `req.headers.origin` against a comma-separated `ALLOWED_ORIGINS` env var before delegating to `wss.handleUpgrade`. Unrecognised origins receive `HTTP/1.1 403 Forbidden` and the socket is destroyed — the 403 is written as a raw HTTP response so it appears in browser DevTools rather than an opaque connection refusal. In development (no `ALLOWED_ORIGINS` set), all origins are allowed for DX convenience; the guard activates only in production. The `isOriginAllowed` helper is a pure function, co-located in `server.ts`, making it trivial to replace with a database-backed allowlist if multi-tenant origins are needed later.
+
 ---
 
 ## CSS Scoping & Theming

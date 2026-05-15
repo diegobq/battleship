@@ -76,11 +76,6 @@
 
 ## Security
 
-- **WebSocket origin allowlist** — **P0**
-  - Gap: `apps/web/server.ts` upgrades any origin's WS upgrade request.
-  - Impact: any third-party site can open a WS, scrape the lobby, or impersonate the client.
-  - Approach: validate `Origin` against `ALLOWED_ORIGINS` env var inside the `upgrade` handler; reject with `403` otherwise.
-
 - **Signed player sessions** — **P0**
   - Gap: `playerId` is generated client-side and stored in `sessionStorage` (`apps/web/lib/ui/playerSession.ts`). Anyone can guess/forge a `playerId` and join as another player.
   - Impact: account takeover within a game (low blast radius today — no money, no PII — but blocks any future monetisation).
@@ -402,6 +397,6 @@
 
 ## Summary by priority
 
-- **P0 (must-have before public launch):** structured logging, error tracking, graceful shutdown, WS origin allowlist, signed sessions, rate limiting, security headers, dependency audit in CI, Redis-backed registry, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
+- **P0 (must-have before public launch):** structured logging, error tracking, graceful shutdown, signed sessions, rate limiting, security headers, dependency audit in CI, Redis-backed registry, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
 - **P1 (polished v1):** metrics/tracing, event-loop lag, WS reconnect UX, CSRF, input normalisation, WS pub/sub fan-out, toast system, screen-reader announcements, theme switcher UI, i18n + plurals, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, preview deploys, Prettier + Husky, semver, ToS, Playwright + axe, load tests, runbook.
 - **P2 (future):** idempotent retries, snapshot/recovery, sound + haptics, safe-area insets, optimistic UI, RTL, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, commitlint, CHANGELOG, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
