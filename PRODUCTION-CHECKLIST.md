@@ -36,10 +36,10 @@
 - **Structured logging** — **P0**
   - Gap: only ad-hoc `console.log` / `console.error` in `apps/web/server.ts`. No log levels, no JSON output, no request/WS correlation IDs.
   - Impact: incidents in production are unrecoverable without log search. Cannot correlate a player's failed shot with a server error.
-  - Approach: adopt `pino` (lowest overhead in Node). Wire a request-scoped logger middleware around the HTTP handler and the WS hub; emit JSON to stdout for the platform's log shipper (Fly.io collects stdout natively).
+  - Approach: adopt `pino` (lowest overhead in Node). Wire a request-scoped logger middleware around the HTTP handler and the WS hub; emit JSON to stdout for the platform's log shipper.
 
 - **Health & readiness endpoints** — **P0**
-  - Gap: no `/health` or `/ready` route. Fly.io health checks currently rely on TCP only.
+  - Gap: no `/health` or `/ready` route.
   - Impact: bad deploys are caught only when a real player connects. No way to gate traffic during boot or shutdown.
   - Approach: add `apps/web/app/api/health/route.ts` (liveness — always 200) and `apps/web/app/api/ready/route.ts` (readiness — checks `GameRegistry` reachability, WS hub init). Wire Fly's `[[http_service.checks]]` to `/ready`.
 
@@ -65,7 +65,7 @@
 - **Graceful shutdown** — **P0**
   - Gap: `apps/web/server.ts` has no `SIGTERM` / `SIGINT` handler. Connections are dropped abruptly on deploy.
   - Impact: in-flight WS messages lost; players see "Connection lost" mid-game on every release.
-  - Approach: on `SIGTERM`, stop accepting new WS upgrades, broadcast a `SHUTDOWN_NOTICE` to active sessions, drain for ~10 s, then `server.close()`. Combine with rolling deploys on Fly.io.
+  - Approach: on `SIGTERM`, stop accepting new WS upgrades, broadcast a `SHUTDOWN_NOTICE` to active sessions, drain for ~10 s, then `server.close()`.
 
 - **WS reconnect UX** — **P1**
   - Gap: `lib/ui/useWebSocket.ts` retries with backoff but the UI shows no banner during the gap.
@@ -282,11 +282,6 @@
   - Gap: no `.github/workflows/` directory.
   - Impact: nothing prevents a broken main branch.
   - Approach: a single `ci.yml` running on PR: `pnpm install --frozen-lockfile`, `pnpm -r typecheck`, `pnpm -r lint`, `pnpm -r test`, `pnpm audit`. Required check before merge.
-
-- **Preview deploys** — **P1**
-  - Gap: only `main` is deployed (manually) to Fly.io.
-  - Impact: design review happens after merge.
-  - Approach: Fly.io preview apps via `flyctl deploy --app pr-{number}` from a GitHub Action; comment the URL on the PR.
 
 - **`.env.example` + env schema** — **P0**
   - Gap: no env documentation. `apps/web/server.ts` reads `PORT`, `HOSTNAME`, `NODE_ENV` without validation.
