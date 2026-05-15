@@ -90,10 +90,12 @@ class EliteStrategy implements ScoringStrategy {
     timeTakenMs: number,
   ): number {
     const p = calculateProbabilityOfHit(unHitShipCells, hiddenCells);
-    const accuracyBonus = p > 0 ? Math.round(this.cfg.accuracyBonusMax * (1 - p)) : 0;
+    const accuracyBonus =
+      p > 0 ? Math.round(this.cfg.accuracyBonusMax * (1 - p)) : 0;
     let score = this.cfg.basePoints + accuracyBonus;
     score *= getConsecutiveHitMultiplier(consecutiveHits, this.cfg.multipliers);
-    if (timeTakenMs <= this.cfg.reflexWindowMs) score *= this.cfg.reflexMultiplier;
+    if (timeTakenMs <= this.cfg.reflexWindowMs)
+      score *= this.cfg.reflexMultiplier;
     return Math.round(score);
   }
 
@@ -111,9 +113,12 @@ function resolveScoringStrategy(
   eliteConfig?: Partial<EliteConfig>,
 ): ScoringStrategy {
   switch (mode) {
-    case "Classic": return classicStrategy;
-    case "Risk":    return riskStrategy;
-    case "Elite":   return new EliteStrategy(resolveEliteConfig(eliteConfig));
+    case "Classic":
+      return classicStrategy;
+    case "Risk":
+      return riskStrategy;
+    case "Elite":
+      return new EliteStrategy(resolveEliteConfig(eliteConfig));
   }
 }
 
