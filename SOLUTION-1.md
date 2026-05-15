@@ -6,6 +6,7 @@ This document records the design rationale behind the Battleship implementation 
 
 ## Table of Contents
 
+- [System Architecture](#system-architecture)
 - [Data Structures and Extensibility](#data-structures-and-extensibility)
 - [Separation of Concerns (FE vs BE)](#separation-of-concerns-fe-vs-be)
 - [API Specification](#api-specification)
@@ -24,6 +25,93 @@ This document records the design rationale behind the Battleship implementation 
 - [Error Boundaries](#error-boundaries)
 - [Health & Readiness Probes](#health--readiness-probes-p0)
 - [Verification](#verification)
+
+---
+
+## System Architecture
+
+The backend follows a **Layered + Event-Driven** pattern:
+
+### Layer Diagram
+
+```mermaid
+graph TD
+    A["HTTP Clients<br/>(Browser, Mobile)"]
+    
+    A -->|REST, SSE, WS| B["API Layer<br/>(Next.js Route Handlers)<br/><br/>POST /api/game/create<br/>POST /api/game/join<br/>GET /api/games/stream SSE<br/>WS /api/game/stream"]
+    
+    B -->|Call| C["Server Infrastructure<br/>(lib/server/)<br/><br/>• GameRegistry game lifecycle<br/>• WebSocketHub message routing<br/>• TurnTimer timeout<br/>• LobbyEmitter pub/sub"]
+    
+    C -->|Call| D["Domain Logic<br/>(lib/core/ Pure & Framework-Free)<br/><br/>• Game state machine<br/>• Board logic placement collision<br/>• Scoring engine<br/>• Fleet management<br/>• Rules validation"]
+    
+    style A fill:#f9f9f9
+    style B fill:#e3f2fd
+    style C fill:#fff3e0
+    style D fill:#f3e5f5
+```
+
+### Module Responsibilities
+
+| Module | Responsibility | Pattern |
+|--------|---|---|
+| `lib/core/game.ts` | State transitions (`lobby` → `placement` → `playing` → `finished`), enforces rules | Pure functions, no mutations |
+| `lib/core/board.ts` | Spatial queries (placement bounds, collision detection, hit resolution) | Pure, O(1) access via 2D array |
+| `lib/core/scoring.ts` | Score calculation (base, accuracy bonus, streak, reflex, penalties) | Parameterised by `EliteConfig` |
+| `lib/core/fleet.ts` | Ship placement, extensible to non-linear shapes | Lazy evaluation via `expandShipCells` |
+| `lib/core/rules.ts` | Turn mechanics, validation guards | Single-responsibility helpers |
+| `lib/server/registry.ts` | Game lifecycle (create, get, update, list, delete) | Interface seam for Redis migration |
+| `lib/server/ws/hub.ts` | WebSocket message routing and broadcast | Pub/sub per game, O(n) fan-out |
+| `lib/server/turn-timer.ts` | Timeout enforcement with injection | Clearable via `AbortController` |
+| `lib/server/lobby-emitter.ts` | Joinable games list push notifications | Singleton observable |
+
+### Communication Paths
+
+Three transports, each optimized for its use case:
+
+```mermaid
+graph LR
+    Client["Browser Client"]
+    
+    Client -->|REST<br/>blocking| REST["POST /api/game/create<br/>POST /api/game/join"]
+    Client -->|SSE<br/>push| SSE["GET /api/games/stream<br/>text/event-stream"]
+    Client <-->|WebSocket<br/>bidirectional| WS["WS /api/game/stream<br/>PLACE_FLEET SHOOT PING<br/>← GAME_STATE_UPDATE<br/>← SHOT_RESULT TURN_TIMEOUT"]
+    
+    style Client fill:#e3f2fd
+    style REST fill:#c8e6c9
+    style SSE fill:#fff9c4
+    style WS fill:#ffccbc
+```
+
+**Design rationale:**
+- **REST** for idempotent setup (create game, join game) — transactional semantics, built-in retry logic
+- **SSE** for lobby — unidirectional push, auto-reconnect, multiplexed on HTTP/2
+- **WebSocket** for in-game — bidirectional persistent TCP, minimal latency (required for 3s reflex bonus)
+
+### Data Flow: Example (Player Shoots)
+
+```
+1. Client clicks enemy board cell (r=2, c=4)
+2. GameProvider sends { type: 'SHOOT', payload: { r: 2, c: 4 } } over WS
+3. Hub receives message, looks up game from gameId
+4. validateShot(game, shooterId, r, c) checks board bounds, cell not already targeted
+5. applyShot(game, r, c) → applyHitToShips(game, r, c) → modifies game.players[shooterId].board
+6. awardScore(game, shooterId, hit, config) computes points with bonuses/penalties
+7. applyShotResult(...) updates activePlayerId, checks for win condition
+8. sanitizeGameStateFor(state, playerId) redacts opponent ships, returns two variants
+9. Hub broadcasts: SHOT_RESULT (both), GAME_STATE_UPDATE (each player gets sanitised view)
+10. Both clients receive updates, UI re-renders score, turn, board state
+```
+
+### Extensibility Seams
+
+The architecture is designed for Exercise 3 (concurrency) and Exercise 4 (spectator mode):
+
+- **`GameRegistry` interface** — swappable in-memory → Redis without touching handlers or core
+- **`EliteConfig` object** — scoring curve parameterised for custom game modes, time-limited events
+- **`Clock` and `Rng` interfaces** — injectable time and randomness for testability and future deterministic replay
+- **`WebSocketHub` interface** — prep for sidecar pub/sub or managed service (e.g., Redis Streams)
+
+---
 
 ## Data Structures and Extensibility
 
