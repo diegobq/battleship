@@ -105,11 +105,31 @@ The state machine is enforced through pure transitions in `lib/core/game.ts` (`c
 
 | Method | Path              | Body                                                            | Response                                  |
 |--------|-------------------|-----------------------------------------------------------------|-------------------------------------------|
-| GET    | `/api/games`      | –                                                               | `{ games: LobbyGameDto[] }`               |
 | POST   | `/api/game/create`| `{ mode, playerName, fleet?, turnTimerMs? }`                    | `{ gameId, playerId }`                    |
 | POST   | `/api/game/join`  | `{ gameId, playerName }`                                        | `{ gameId, playerId }`                    |
 
-Validation is centralised in `lib/api/dto.ts` (no external schema library — handwritten guards, 16 tests). Validation errors return `{ error: { code, message } }` with `400 BAD_REQUEST`; missing/locked games return `404 GAME_NOT_FOUND` / `409 GAME_NOT_JOINABLE`.
+Validation is centralised in `packages/core/src/api/dto.ts` (no external schema library — handwritten guards, 16 tests). Validation errors return `{ error: { code, message } }` with `400 BAD_REQUEST`; missing/locked games return `404 GAME_NOT_FOUND` / `409 GAME_NOT_JOINABLE`.
+
+### Server-Sent Events (SSE)
+
+`GET /api/games/stream` — `text/event-stream`
+
+**Server → Client** (each event is a JSON object)
+
+```ts
+// event: message (default)
+data: { games: LobbyGameDto[] }
+```
+
+The stream delivers an initial snapshot immediately on connect, then pushes a fresh snapshot each time the joinable-game list changes (a game is created or a player joins). The client never sends data on this connection — it is strictly unidirectional. Browser `EventSource` handles automatic reconnection; no custom backoff logic is required on the client.
+
+**Trigger points** on the server:
+- `POST /api/game/create` calls `getLobbyEmitter().notify()` after `registry.create(game)`.
+- `POST /api/game/join` calls `getLobbyEmitter().notify()` after `registry.update(...)`.
+
+`LobbyEmitter` (`packages/core/src/server/lobby-emitter.ts`) is a lightweight observable pinned to `globalThis` (same pattern as `GameRegistry` and `WebSocketHub`), so it is shared across Next.js module reloads in dev without creating duplicate instances.
+
+**Why SSE for the lobby and not for in-game flows** — see [Communication Protocol Justification](#communication-protocol-justification).
 
 ### WebSocket
 
@@ -133,19 +153,51 @@ Validation is centralised in `lib/api/dto.ts` (no external schema library — ha
 { type: 'PONG' }
 ```
 
-All messages are JSON-parsed and validated via type guards in `lib/server/ws/protocol.ts` (17 tests).
+All messages are JSON-parsed and validated via type guards in `packages/core/src/server/ws/protocol.ts` (17 tests).
 
 ---
 
 ## Communication Protocol Justification
 
-**Choice: WebSockets.** Alternatives considered: HTTP polling, Server-Sent Events + REST.
+The system uses **three transports**, each chosen for its fit with the data-flow:
 
-Battleship Elite mode awards a **reflex bonus** for shots taken within 3 seconds of the turn starting. The reflex window is short enough that HTTP overhead (~50–200 ms per round-trip including TCP/TLS reuse) is no longer negligible — a SSE+REST design adds at least one full HTTP request per shot. WebSockets give us a persistent, bidirectional TCP connection: no header overhead per shot, no separate request-establishment latency, and built-in framing for low-latency events from server to client (state updates, opponent shots, turn-timeout broadcasts).
+| Transport | Endpoint | Direction | Used for |
+|---|---|---|---|
+| REST | `POST /api/game/create`, `/join` | C→S | State-changing commands |
+| **SSE** | `GET /api/games/stream` | **S→C only** | Lobby push |
+| WebSocket | `/api/game/stream` | Bidirectional | All in-game communication |
+
+### Why WebSocket for in-game
+
+Battleship Elite mode awards a **reflex bonus** for shots taken within 3 seconds of the turn starting. The reflex window is short enough that HTTP overhead (~50–200 ms per round-trip including TCP/TLS reuse) is no longer negligible. WebSockets give us a persistent, bidirectional TCP connection with no per-message header overhead and no separate request-establishment latency.
 
 Trade-offs:
-- WS doesn't auto-reconnect at the protocol layer; the client (`lib/ui/useWebSocket.ts`) implements exponential backoff (up to 5 attempts) to handle transient disconnects.
+- WS doesn't auto-reconnect at the protocol layer; `apps/web/lib/ui/useWebSocket.ts` implements exponential backoff (up to 5 attempts).
 - WS makes horizontal scaling slightly harder than stateless REST (sticky sessions are required). For Exercise 1 the in-memory `GameRegistry` is single-instance; Exercise 3 swaps in Redis behind the same interface.
+
+### Why SSE for the lobby
+
+The lobby game list was previously polled every 4 s (`LobbyTable.tsx`). A 4 s lag is visible when a newly created game doesn't appear until the next tick. SSE replaces this with instant push at no extra latency cost.
+
+SSE is the right tool here because:
+- The lobby is **strictly unidirectional** (server pushes, client never sends on this connection).
+- No WS is open yet — the user is on the home screen before any game context exists.
+- `EventSource` reconnects automatically without application code.
+- SSE is HTTP-native: works through any HTTP/2 proxy, multiplexed on a single connection, and does not require the Node upgrade path that WebSocket needs.
+
+### Why SSE was NOT extended to other waiting flows
+
+Two other flows superficially look like SSE candidates but were deliberately left on WebSocket:
+
+**Pre-game waiting room** (player 1 waits for player 2 to join) — the WS is already open the moment the player enters `/game/[id]`, because `GameProvider` opens it unconditionally on mount. Replacing this single "opponent joined" event with SSE would require a two-phase connection lifecycle:
+
+```
+Home (SSE: lobby stream) → Create → Waiting room (SSE: game join stream) → Both joined → close SSE, open WS
+```
+
+This introduces a non-trivial coordination boundary: the client must detect the transition event, close the SSE, negotiate the WS handshake, and receive the initial game state — all before any UI can advance. The margin for a race condition (SSE delivers "both joined", client closes SSE, WS not yet open, server advances state) is real. Since the WS is already open and carries the `GAME_STATE_UPDATE { players: { … } }` payload at negligible cost, the complexity of the two-phase pattern is not justified.
+
+**Placement phase waiting** (one player placed, waiting for the other) — the WS is open and bidirectional: the waiting player might still need to send `PLACE_FLEET` if they haven't, and the server pushes `GAME_STATE_UPDATE` to both sides. There is no moment where the connection is purely unidirectional, so splitting into SSE (push) + REST (send) would create two live connections handling the same game session — added complexity with no benefit.
 
 ---
 

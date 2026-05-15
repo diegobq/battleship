@@ -10,6 +10,7 @@ export * from './core/game';
 export * from './server/registry';
 export * from './server/ids';
 export * from './server/turn-timer';
+export * from './server/lobby-emitter';
 export * from './server/ws/protocol';
 export * from './server/ws/hub';
 export * from './server/ws/handlers';

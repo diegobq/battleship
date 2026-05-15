@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import { LobbyGameDto } from '@battleship/core';
 import { setPlayerId } from '@/lib/ui/playerSession';
 
-const REFRESH_INTERVAL_MS = 4_000;
-
 export default function LobbyTable() {
   const router = useRouter();
   const [games, setGames] = useState<LobbyGameDto[]>([]);
@@ -15,24 +13,18 @@ export default function LobbyTable() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    async function refresh() {
+    const es = new EventSource('/api/games/stream');
+    es.onmessage = (e) => {
       try {
-        const r = await fetch('/api/games', { cache: 'no-store' });
-        const data = await r.json();
-        if (!cancelled) setGames(data.games ?? []);
+        const data = JSON.parse(e.data) as { games: LobbyGameDto[] };
+        setGames(data.games ?? []);
+        setLoading(false);
       } catch {
-        // Ignore transient fetch failures; next tick will retry.
-      } finally {
-        if (!cancelled) setLoading(false);
+        // ignore malformed events
       }
-    }
-    refresh();
-    const t = setInterval(refresh, REFRESH_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
     };
+    es.onerror = () => setLoading(false);
+    return () => es.close();
   }, []);
 
   async function handleJoin(gameId: string) {

@@ -3,7 +3,7 @@ import { parseJoinGameRequest } from '@battleship/core';
 import { ApiError, handleApiError } from '@/lib/api/errors';
 import { addSecondPlayer, createPlayer } from '@battleship/core';
 import { newPlayerId, newShipId } from '@battleship/core';
-import { registry } from '@battleship/core';
+import { registry, getLobbyEmitter } from '@battleship/core';
 
 export async function POST(req: Request) {
   try {
@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     const joiner = createPlayer(playerId, input.playerName);
     const updated = addSecondPlayer(game, joiner, { idFactory: newShipId });
     registry.update(input.gameId, () => updated);
+    getLobbyEmitter().notify();
     return NextResponse.json({ gameId: game.id, playerId });
   } catch (err) {
     return handleApiError(err);

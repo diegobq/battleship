@@ -5,7 +5,7 @@ import { makeSystemClock } from '@battleship/core';
 import { defaultFleetConfig } from '@battleship/core';
 import { createGame, createPlayer } from '@battleship/core';
 import { newGameId, newPlayerId } from '@battleship/core';
-import { registry } from '@battleship/core';
+import { registry, getLobbyEmitter } from '@battleship/core';
 
 export async function POST(req: Request) {
   try {
@@ -24,6 +24,7 @@ export async function POST(req: Request) {
       clock: makeSystemClock(),
     });
     registry.create(game);
+    getLobbyEmitter().notify();
     return NextResponse.json({ gameId: game.id, playerId });
   } catch (err) {
     return handleApiError(err);
