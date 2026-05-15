@@ -21,6 +21,8 @@ This document records the design rationale behind the Battleship implementation 
 - [UI Type Centralisation](#ui-type-centralisation)
 - [Mobile-first UX](#mobile-first-ux)
 - [Test Strategy](#test-strategy)
+- [Error Boundaries](#error-boundaries)
+- [Health & Readiness Probes](#health--readiness-probes-p0)
 - [Verification](#verification)
 
 ## Data Structures and Extensibility
@@ -351,6 +353,18 @@ React render errors are catastrophic in production — a single unhandled except
 **`apps/web/app/not-found.tsx`** — Custom 404 page for invalid routes (e.g., `/game/invalid-id`), preventing the default Next.js chrome.
 
 All three boundaries use the existing design tokens (`--brand-danger`, `--brand-primary`, `--surface-*`) for consistency with the game UI. Errors are logged to the console; Sentry integration (pipeline errors to external service) is a follow-up. The boundaries handle **render-time errors only**; WebSocket / connection errors remain in GameShell state (not caught by React boundaries).
+
+---
+
+## Health & Readiness Probes
+
+Kubernetes/Fly.io deployment platforms require liveness and readiness probes to manage rolling deploys and traffic gating. Two health check endpoints have been added:
+
+**`GET /api/health`** — Liveness probe that always returns `{ status: 'alive' }` with 200 OK. Fast and stateless (no dependencies checked); signals to the orchestrator that the process is alive. If this endpoint is slow, the platform assumes the process is hung and may restart it.
+
+**`GET /api/ready`** — Readiness probe that checks if `GameRegistry` and `WebSocketHub` singletons are initialized. Returns `{ status: 'ready' }` with 200 OK if ready, or `{ status: 'not_ready' }` with 503 Service Unavailable if booting/shutting down. Used by the orchestrator to gate traffic — new instances are removed from load balancer until they signal readiness.
+
+**Rationale:** Separating liveness (process alive?) from readiness (can accept traffic?) follows Kubernetes best practices. Liveness failures trigger restarts; readiness failures only remove from load balancer. Both are required for graceful rolling deploys and zero-downtime drains. The `/ready` endpoint checks only in-memory singletons; future database/Redis connectivity checks can be added when persistence is implemented.
 
 ---
 

@@ -38,11 +38,6 @@
   - Impact: incidents in production are unrecoverable without log search. Cannot correlate a player's failed shot with a server error.
   - Approach: adopt `pino` (lowest overhead in Node). Wire a request-scoped logger middleware around the HTTP handler and the WS hub; emit JSON to stdout for the platform's log shipper.
 
-- **Health & readiness endpoints** — **P0**
-  - Gap: no `/health` or `/ready` route.
-  - Impact: bad deploys are caught only when a real player connects. No way to gate traffic during boot or shutdown.
-  - Approach: add `apps/web/app/api/health/route.ts` (liveness — always 200) and `apps/web/app/api/ready/route.ts` (readiness — checks `GameRegistry` reachability, WS hub init). Wire Fly's `[[http_service.checks]]` to `/ready`.
-
 - **Error tracking** — **P0**
   - Gap: server errors are swallowed by WS `try/catch`; client errors are not reported anywhere.
   - Impact: silent failures in production. The team will not know an error happened until a user reports it.
@@ -407,6 +402,6 @@
 
 ## Summary by priority
 
-- **P0 (must-have before public launch):** structured logging, health/ready endpoints, error tracking, graceful shutdown, WS origin allowlist, signed sessions, rate limiting, security headers, dependency audit in CI, Redis-backed registry, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
+- **P0 (must-have before public launch):** structured logging, error tracking, graceful shutdown, WS origin allowlist, signed sessions, rate limiting, security headers, dependency audit in CI, Redis-backed registry, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
 - **P1 (polished v1):** metrics/tracing, event-loop lag, WS reconnect UX, CSRF, input normalisation, WS pub/sub fan-out, toast system, screen-reader announcements, theme switcher UI, i18n + plurals, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, preview deploys, Prettier + Husky, semver, ToS, Playwright + axe, load tests, runbook.
 - **P2 (future):** idempotent retries, snapshot/recovery, sound + haptics, safe-area insets, optimistic UI, RTL, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, commitlint, CHANGELOG, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
