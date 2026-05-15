@@ -340,6 +340,20 @@ Tailwind responsive utilities default to mobile sizing; `min-width: sm` (640 px)
 
 ---
 
+## Error Boundaries
+
+React render errors are catastrophic in production — a single unhandled exception unmounts the entire app mid-match. Three Next.js `error.tsx` boundaries have been added to provide graceful fallbacks:
+
+**`apps/web/app/error.tsx`** — Root-level error boundary catching errors in all routes (home, lobby, etc.). Displays "Something went wrong" + "Try Again" (reset) and "Return to Lobby" (navigate home) buttons.
+
+**`apps/web/app/game/error.tsx`** — Game-level boundary protecting PlacementView, PlayView, and related components. Shows "Game Error" + same recovery buttons.
+
+**`apps/web/app/not-found.tsx`** — Custom 404 page for invalid routes (e.g., `/game/invalid-id`), preventing the default Next.js chrome.
+
+All three boundaries use the existing design tokens (`--brand-danger`, `--brand-primary`, `--surface-*`) for consistency with the game UI. Errors are logged to the console; Sentry integration (pipeline errors to external service) is a follow-up. The boundaries handle **render-time errors only**; WebSocket / connection errors remain in GameShell state (not caught by React boundaries).
+
+---
+
 ## Verification
 
 ```bash

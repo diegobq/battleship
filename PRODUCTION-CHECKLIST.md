@@ -67,16 +67,6 @@
   - Impact: in-flight WS messages lost; players see "Connection lost" mid-game on every release.
   - Approach: on `SIGTERM`, stop accepting new WS upgrades, broadcast a `SHUTDOWN_NOTICE` to active sessions, drain for ~10 s, then `server.close()`. Combine with rolling deploys on Fly.io.
 
-- **React error boundary** — **P0**
-  - Gap: no boundary wraps the game UI. A render-time exception unmounts the whole app.
-  - Impact: a single React error blanks the screen mid-match.
-  - Approach: add `apps/web/app/error.tsx` (route-level) and a top-level boundary in `apps/web/app/layout.tsx` rendering a "Something went wrong — return to lobby" fallback. Pipe the error to Sentry.
-
-- **`not-found.tsx`** — **P1**
-  - Gap: hitting `/game/{bad-id}` shows the default Next.js 404 chrome.
-  - Impact: looks unbranded; no useful next action for the user.
-  - Approach: `apps/web/app/not-found.tsx` with a "Back to lobby" CTA; use the same theme tokens.
-
 - **WS reconnect UX** — **P1**
   - Gap: `lib/ui/useWebSocket.ts` retries with backoff but the UI shows no banner during the gap.
   - Impact: a flaky network looks like the game has hung.
@@ -422,6 +412,6 @@
 
 ## Summary by priority
 
-- **P0 (must-have before public launch):** structured logging, health/ready endpoints, error tracking, graceful shutdown, React error boundary, WS origin allowlist, signed sessions, rate limiting, security headers, dependency audit in CI, Redis-backed registry, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
-- **P1 (polished v1):** metrics/tracing, event-loop lag, `not-found.tsx`, WS reconnect UX, CSRF, input normalisation, WS pub/sub fan-out, toast system, screen-reader announcements, theme switcher UI, i18n + plurals, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, preview deploys, Prettier + Husky, semver, ToS, Playwright + axe, load tests, runbook.
+- **P0 (must-have before public launch):** structured logging, health/ready endpoints, error tracking, graceful shutdown, WS origin allowlist, signed sessions, rate limiting, security headers, dependency audit in CI, Redis-backed registry, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
+- **P1 (polished v1):** metrics/tracing, event-loop lag, WS reconnect UX, CSRF, input normalisation, WS pub/sub fan-out, toast system, screen-reader announcements, theme switcher UI, i18n + plurals, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, preview deploys, Prettier + Husky, semver, ToS, Playwright + axe, load tests, runbook.
 - **P2 (future):** idempotent retries, snapshot/recovery, sound + haptics, safe-area insets, optimistic UI, RTL, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, commitlint, CHANGELOG, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
