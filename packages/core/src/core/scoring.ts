@@ -1,4 +1,4 @@
-import { EliteConfig, GameMode } from './types';
+import { EliteConfig, GameMode } from "./types";
 
 export const DEFAULT_ELITE_CONFIG: EliteConfig = {
   basePoints: 10,
@@ -31,7 +31,9 @@ export interface ScoreUpdate {
   consecutiveHits: number;
 }
 
-export function resolveEliteConfig(partial?: Partial<EliteConfig>): EliteConfig {
+export function resolveEliteConfig(
+  partial?: Partial<EliteConfig>,
+): EliteConfig {
   if (!partial) return DEFAULT_ELITE_CONFIG;
   return {
     ...DEFAULT_ELITE_CONFIG,
@@ -49,7 +51,10 @@ export function getConsecutiveHitMultiplier(
   return multipliers[idx];
 }
 
-export function calculateProbabilityOfHit(unHitShipCells: number, hiddenCells: number): number {
+export function calculateProbabilityOfHit(
+  unHitShipCells: number,
+  hiddenCells: number,
+): number {
   if (hiddenCells <= 0) return 1;
   return Math.min(1, Math.max(0, unHitShipCells / hiddenCells));
 }
@@ -62,8 +67,8 @@ export function calculateHitScore(
   timeTakenMs: number,
   eliteConfig?: Partial<EliteConfig>,
 ): number {
-  if (mode === 'Classic') return CLASSIC_HIT_POINTS;
-  if (mode === 'Risk') return RISK_HIT_POINTS;
+  if (mode === "Classic") return CLASSIC_HIT_POINTS;
+  if (mode === "Risk") return RISK_HIT_POINTS;
   return calculateEliteHitScore(
     unHitShipCells,
     hiddenCells,
@@ -90,9 +95,12 @@ function calculateEliteHitScore(
   return Math.round(score);
 }
 
-export function calculateMissPenalty(mode: GameMode, eliteConfig?: Partial<EliteConfig>): number {
-  if (mode === 'Classic') return 0;
-  if (mode === 'Risk') return RISK_MISS_PENALTY;
+export function calculateMissPenalty(
+  mode: GameMode,
+  eliteConfig?: Partial<EliteConfig>,
+): number {
+  if (mode === "Classic") return 0;
+  if (mode === "Risk") return RISK_MISS_PENALTY;
   return resolveEliteConfig(eliteConfig).missPenalty;
 }
 

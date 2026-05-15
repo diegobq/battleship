@@ -1,9 +1,12 @@
-import { GameState } from '../core/types';
+import { GameState } from "../core/types";
 
 export interface GameRegistry {
   create(game: GameState): void;
   get(id: string): GameState | undefined;
-  update(id: string, fn: (state: GameState) => GameState): GameState | undefined;
+  update(
+    id: string,
+    fn: (state: GameState) => GameState,
+  ): GameState | undefined;
   list(): GameState[];
   listJoinable(): GameState[];
   delete(id: string): boolean;
@@ -23,7 +26,10 @@ class InMemoryGameRegistry implements GameRegistry {
     return this.games.get(id);
   }
 
-  update(id: string, fn: (state: GameState) => GameState): GameState | undefined {
+  update(
+    id: string,
+    fn: (state: GameState) => GameState,
+  ): GameState | undefined {
     const current = this.games.get(id);
     if (!current) return undefined;
     const next = fn(current);
@@ -37,7 +43,7 @@ class InMemoryGameRegistry implements GameRegistry {
 
   listJoinable(): GameState[] {
     return this.list().filter(
-      (g) => g.status === 'lobby' && Object.keys(g.players).length < 2,
+      (g) => g.status === "lobby" && Object.keys(g.players).length < 2,
     );
   }
 
@@ -46,7 +52,7 @@ class InMemoryGameRegistry implements GameRegistry {
   }
 }
 
-const GLOBAL_KEY = Symbol.for('battleship.gameRegistry');
+const GLOBAL_KEY = Symbol.for("battleship.gameRegistry");
 
 interface GlobalWithRegistry {
   [GLOBAL_KEY]?: GameRegistry;

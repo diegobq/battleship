@@ -5,6 +5,7 @@ This document records the design rationale behind the Battleship implementation 
 ---
 
 ## Table of Contents
+
 - [Data Structures and Extensibility](#data-structures-and-extensibility)
 - [Separation of Concerns (FE vs BE)](#separation-of-concerns-fe-vs-be)
 - [API Specification](#api-specification)
@@ -41,7 +42,7 @@ Ships are plain objects:
 ```ts
 interface Ship {
   id: string;
-  type: ShipType;          // closed union: 'Cruiser' | 'Destroyer' | 'Submarine'
+  type: ShipType; // closed union: 'Cruiser' | 'Destroyer' | 'Submarine'
   length: number;
   hits: number;
   positions: Coordinate[]; // resolved cells after placement
@@ -76,11 +77,11 @@ A non-linear ship (T-shape, L-shape) is supported by populating `cells: Coordina
 ```ts
 interface GameState {
   id: string;
-  status: 'lobby' | 'placement' | 'playing' | 'finished';
-  config: GameConfig;          // mode, fleet, turnTimerMs, optional EliteConfig overrides
+  status: "lobby" | "placement" | "playing" | "finished";
+  config: GameConfig; // mode, fleet, turnTimerMs, optional EliteConfig overrides
   players: Record<string, PlayerState>;
   activePlayerId: string | null;
-  lastActionTime: number;      // timestamp from injected Clock
+  lastActionTime: number; // timestamp from injected Clock
   createdAt: number;
   turnDeadlineAt: number | null;
   winnerId: string | null;
@@ -103,10 +104,10 @@ The state machine is enforced through pure transitions in `lib/core/game.ts` (`c
 
 ### REST
 
-| Method | Path              | Body                                                            | Response                                  |
-|--------|-------------------|-----------------------------------------------------------------|-------------------------------------------|
-| POST   | `/api/game/create`| `{ mode, playerName, fleet?, turnTimerMs? }`                    | `{ gameId, playerId }`                    |
-| POST   | `/api/game/join`  | `{ gameId, playerName }`                                        | `{ gameId, playerId }`                    |
+| Method | Path               | Body                                         | Response               |
+| ------ | ------------------ | -------------------------------------------- | ---------------------- |
+| POST   | `/api/game/create` | `{ mode, playerName, fleet?, turnTimerMs? }` | `{ gameId, playerId }` |
+| POST   | `/api/game/join`   | `{ gameId, playerName }`                     | `{ gameId, playerId }` |
 
 Validation is centralised in `packages/core/src/api/dto.ts` (no external schema library — handwritten guards, 16 tests). Validation errors return `{ error: { code, message } }` with `400 BAD_REQUEST`; missing/locked games return `404 GAME_NOT_FOUND` / `409 GAME_NOT_JOINABLE`.
 
@@ -124,6 +125,7 @@ data: { games: LobbyGameDto[] }
 The stream delivers an initial snapshot immediately on connect, then pushes a fresh snapshot each time the joinable-game list changes (a game is created or a player joins). The client never sends data on this connection — it is strictly unidirectional. Browser `EventSource` handles automatic reconnection; no custom backoff logic is required on the client.
 
 **Trigger points** on the server:
+
 - `POST /api/game/create` calls `getLobbyEmitter().notify()` after `registry.create(game)`.
 - `POST /api/game/join` calls `getLobbyEmitter().notify()` after `registry.update(...)`.
 
@@ -161,17 +163,18 @@ All messages are JSON-parsed and validated via type guards in `packages/core/src
 
 The system uses **three transports**, each chosen for its fit with the data-flow:
 
-| Transport | Endpoint | Direction | Used for |
-|---|---|---|---|
-| REST | `POST /api/game/create`, `/join` | C→S | State-changing commands |
-| **SSE** | `GET /api/games/stream` | **S→C only** | Lobby push |
-| WebSocket | `/api/game/stream` | Bidirectional | All in-game communication |
+| Transport | Endpoint                         | Direction     | Used for                  |
+| --------- | -------------------------------- | ------------- | ------------------------- |
+| REST      | `POST /api/game/create`, `/join` | C→S           | State-changing commands   |
+| **SSE**   | `GET /api/games/stream`          | **S→C only**  | Lobby push                |
+| WebSocket | `/api/game/stream`               | Bidirectional | All in-game communication |
 
 ### Why WebSocket for in-game
 
 Battleship Elite mode awards a **reflex bonus** for shots taken within 3 seconds of the turn starting. The reflex window is short enough that HTTP overhead (~50–200 ms per round-trip including TCP/TLS reuse) is no longer negligible. WebSockets give us a persistent, bidirectional TCP connection with no per-message header overhead and no separate request-establishment latency.
 
 Trade-offs:
+
 - WS doesn't auto-reconnect at the protocol layer; `apps/web/lib/ui/useWebSocket.ts` implements exponential backoff (up to 5 attempts).
 - WS makes horizontal scaling slightly harder than stateless REST (sticky sessions are required). For Exercise 1 the in-memory `GameRegistry` is single-instance; Exercise 3 swaps in Redis behind the same interface.
 
@@ -180,6 +183,7 @@ Trade-offs:
 The lobby game list was previously polled every 4 s (`LobbyTable.tsx`). A 4 s lag is visible when a newly created game doesn't appear until the next tick. SSE replaces this with instant push at no extra latency cost.
 
 SSE is the right tool here because:
+
 - The lobby is **strictly unidirectional** (server pushes, client never sends on this connection).
 - No WS is open yet — the user is on the home screen before any game context exists.
 - `EventSource` reconnects automatically without application code.
@@ -220,8 +224,12 @@ The turn **alternates after every shot, regardless of hit or miss**. This is the
 All time and randomness flow through interfaces:
 
 ```ts
-interface Clock { now(): number }
-interface Rng   { next(): number }
+interface Clock {
+  now(): number;
+}
+interface Rng {
+  next(): number;
+}
 ```
 
 `makeSystemClock()` / `makeSystemRng()` are used in production (`server.ts`); tests inject `makeFakeClock()` and `makeSeededRng(seed)` (mulberry32). This is **why the reflex-bonus boundary at exactly 3000 ms is unit-testable** (`lib/core/__tests__/scoring.test.ts`) and **why the dice roll is deterministic in tests** (`lib/core/__tests__/rules.test.ts`).
@@ -236,18 +244,19 @@ No `Date.now()` or `Math.random()` call appears inside `lib/core/**`. The CLAUDE
 
 ```ts
 interface EliteConfig {
-  basePoints: number;          // 10
-  accuracyBonusMax: number;    // 40 — added at p=0, scales linearly with (1-p)
-  multipliers: number[];       // [1, 1, 1.5, 2, 3] indexed by consecutiveHits, clamped
-  reflexWindowMs: number;      // 3000
-  reflexMultiplier: number;    // 1.2
-  missPenalty: number;         // -2
+  basePoints: number; // 10
+  accuracyBonusMax: number; // 40 — added at p=0, scales linearly with (1-p)
+  multipliers: number[]; // [1, 1, 1.5, 2, 3] indexed by consecutiveHits, clamped
+  reflexWindowMs: number; // 3000
+  reflexMultiplier: number; // 1.2
+  missPenalty: number; // -2
 }
 ```
 
 The same module exposes `DEFAULT_ELITE_CONFIG`. Game configs can pass `Partial<EliteConfig>` to override individual fields (e.g. a Christmas event with `reflexMultiplier: 2`) without touching the algorithm. The miss-penalty floor at zero is **applied by the game layer** (`processShot` in `lib/core/game.ts`), keeping `awardScore` a pure delta calculator — single source of truth for the floor rule.
 
 Modes:
+
 - **Classic**: 1 pt/hit, no bonuses, no penalties.
 - **Risk**: 10 pts/hit, −1 pt/miss, floor at 0.
 - **Elite**: full scoring (accuracy + streak multiplier + reflex + miss penalty), floor at 0.
@@ -342,6 +351,7 @@ pnpm build           # next build
 ```
 
 Manual golden path (two browser tabs):
+
 1. Tab A → home → **Create new game** (Elite, default fleet, 60s) → lands on waiting view with shareable Game ID.
 2. Tab B → home → lobby list shows the new game → **Join**.
 3. Both tabs transition to placement → tap ship in palette → tap cells to place → **Let's play**.

@@ -1,4 +1,4 @@
-import { BoardCellStatus, Coordinate, Ship, ShipOrientation } from './types';
+import { BoardCellStatus, Coordinate, Ship, ShipOrientation } from "./types";
 
 export const BOARD_SIZE = 8;
 
@@ -7,7 +7,7 @@ export function createEmptyGrid(): BoardCellStatus[][] {
   for (let r = 0; r < BOARD_SIZE; r++) {
     const row: BoardCellStatus[] = [];
     for (let c = 0; c < BOARD_SIZE; c++) {
-      row.push('empty');
+      row.push("empty");
     }
     grid.push(row);
   }
@@ -31,7 +31,7 @@ export function expandShipCells(
   let { r, c } = start;
   for (let i = 0; i < length; i++) {
     cells.push({ r, c });
-    if (orientation === 'horizontal') c++;
+    if (orientation === "horizontal") c++;
     else r++;
   }
   return cells;
@@ -46,7 +46,7 @@ export function canPlace(
   const cells = expandShipCells(start, length, orientation);
   for (const { r, c } of cells) {
     if (!isInBounds(r, c)) return false;
-    if (grid[r][c] !== 'empty') return false;
+    if (grid[r][c] !== "empty") return false;
   }
   return true;
 }
@@ -61,7 +61,7 @@ export function applyPlacement(
   const cells = expandShipCells(start, ship.length, orientation);
   const next = cloneGrid(grid);
   for (const { r, c } of cells) {
-    next[r][c] = 'ship';
+    next[r][c] = "ship";
   }
   return {
     grid: next,
@@ -78,12 +78,12 @@ export function applyShot(
     throw new Error(`Shot out of bounds: (${r}, ${c})`);
   }
   const cell = grid[r][c];
-  if (cell === 'hit' || cell === 'miss') {
+  if (cell === "hit" || cell === "miss") {
     return { grid, hit: false, alreadyShot: true };
   }
-  const hit = cell === 'ship';
+  const hit = cell === "ship";
   const next = cloneGrid(grid);
-  next[r][c] = hit ? 'hit' : 'miss';
+  next[r][c] = hit ? "hit" : "miss";
   return { grid: next, hit, alreadyShot: false };
 }
 
@@ -91,7 +91,7 @@ export function countHiddenCells(grid: BoardCellStatus[][]): number {
   let count = 0;
   for (const row of grid) {
     for (const cell of row) {
-      if (cell === 'empty' || cell === 'ship') count++;
+      if (cell === "empty" || cell === "ship") count++;
     }
   }
   return count;

@@ -1,12 +1,12 @@
-'use client';
-import Link from 'next/link';
-import { PlayerState } from '@battleship/core';
-import { useGame } from '@/lib/ui/GameProvider';
-import Board from '../Board/Board';
-import ShotToast from '../Effects/ShotToast';
-import MultiplierBadge from '../Hud/MultiplierBadge';
-import ScorePanel from '../Hud/ScorePanel';
-import TurnTimer from '../Hud/TurnTimer';
+"use client";
+import Link from "next/link";
+import { PlayerState } from "@battleship/core";
+import { useGame } from "@/lib/ui/GameProvider";
+import Board from "../Board/Board";
+import ShotToast from "../Effects/ShotToast";
+import MultiplierBadge from "../Hud/MultiplierBadge";
+import ScorePanel from "../Hud/ScorePanel";
+import TurnTimer from "../Hud/TurnTimer";
 
 export default function PlayView() {
   const { state, playerId, lastShot, shoot, leaveGame } = useGame();
@@ -15,7 +15,7 @@ export default function PlayView() {
   const opponentId = Object.keys(state.players).find((id) => id !== playerId);
   const opponent = opponentId ? state.players[opponentId] : null;
   const isMyTurn = state.activePlayerId === playerId;
-  const finished = state.status === 'finished';
+  const finished = state.status === "finished";
   const iWon = finished && state.winnerId === playerId;
 
   return (
@@ -23,34 +23,71 @@ export default function PlayView() {
       <ShotToast event={lastShot} selfId={playerId} />
       <ScorePanel state={state} selfId={playerId} />
       <div className="flex gap-2 items-center">
-        <TurnTimer deadlineAt={state.turnDeadlineAt} totalMs={state.config.turnTimerMs} isMyTurn={isMyTurn} />
-        <MultiplierBadge mode={state.config.mode} consecutiveHits={me.consecutiveHits} eliteConfig={state.config.elite} />
+        <TurnTimer
+          deadlineAt={state.turnDeadlineAt}
+          totalMs={state.config.turnTimerMs}
+          isMyTurn={isMyTurn}
+        />
+        <MultiplierBadge
+          mode={state.config.mode}
+          consecutiveHits={me.consecutiveHits}
+          eliteConfig={state.config.elite}
+        />
       </div>
       <GameResultBanner finished={finished} iWon={iWon} />
       <div className="flex justify-end">
-        <Link href="/" onClick={finished ? undefined : leaveGame} className="rounded px-3 py-2 text-sm" style={{ background: 'var(--surface-muted)', color: 'var(--brand-danger)' }}>
-          {finished ? 'Back to lobby' : 'Leave game'}
+        <Link
+          href="/"
+          onClick={finished ? undefined : leaveGame}
+          className="rounded px-3 py-2 text-sm"
+          style={{
+            background: "var(--surface-muted)",
+            color: "var(--brand-danger)",
+          }}
+        >
+          {finished ? "Back to lobby" : "Leave game"}
         </Link>
       </div>
-      <BoardsSection me={me} opponent={opponent} isMyTurn={isMyTurn} finished={finished} onShoot={shoot} />
+      <BoardsSection
+        me={me}
+        opponent={opponent}
+        isMyTurn={isMyTurn}
+        finished={finished}
+        onShoot={shoot}
+      />
     </main>
   );
 }
 
-function GameResultBanner({ finished, iWon }: { finished: boolean; iWon: boolean }) {
+function GameResultBanner({
+  finished,
+  iWon,
+}: {
+  finished: boolean;
+  iWon: boolean;
+}) {
   if (!finished) return null;
   return (
     <div
       role="status"
       className="rounded-md p-4 text-center font-semibold"
-      style={{ background: iWon ? 'var(--brand-success)' : 'var(--brand-danger)', color: 'var(--surface-bg)' }}
+      style={{
+        background: iWon ? "var(--brand-success)" : "var(--brand-danger)",
+        color: "var(--surface-bg)",
+      }}
     >
-      {iWon ? '🏆 Victory! Fleet destroyed.' : '💀 Defeat. Your fleet sunk.'}
+      {iWon ? "🏆 Victory! Fleet destroyed." : "💀 Defeat. Your fleet sunk."}
     </div>
   );
 }
 
-function BoardsSection({ me, opponent, isMyTurn, finished, onShoot }: {
+function BoardsSection({
+  me,
+  opponent,
+  isMyTurn,
+  finished,
+  onShoot,
+}: {
   me: PlayerState;
   opponent: PlayerState | null;
   isMyTurn: boolean;

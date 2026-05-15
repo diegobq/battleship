@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
-import { parseCreateGameRequest } from '@battleship/core';
-import { handleApiError } from '@/lib/api/errors';
-import { makeSystemClock } from '@battleship/core';
-import { defaultFleetConfig } from '@battleship/core';
-import { createGame, createPlayer } from '@battleship/core';
-import { newGameId, newPlayerId } from '@battleship/core';
-import { registry, getLobbyEmitter } from '@battleship/core';
+import { NextResponse } from "next/server";
+import { parseCreateGameRequest } from "@battleship/core";
+import { handleApiError } from "@/lib/api/errors";
+import { makeSystemClock } from "@battleship/core";
+import { defaultFleetConfig } from "@battleship/core";
+import { createGame, createPlayer } from "@battleship/core";
+import { newGameId, newPlayerId } from "@battleship/core";
+import { registry, getLobbyEmitter } from "@battleship/core";
 
 export async function POST(req: Request) {
   try {

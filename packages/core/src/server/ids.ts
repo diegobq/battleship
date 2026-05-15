@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from "node:crypto";
 
 /**
  * Eight-character game id derived from a UUID v4. Compact enough to share verbally;
@@ -13,5 +13,5 @@ export function newPlayerId(): string {
 }
 
 export function newShipId(): string {
-  return randomUUID().replace(/-/g, '').slice(0, 12);
+  return randomUUID().replace(/-/g, "").slice(0, 12);
 }

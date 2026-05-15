@@ -60,12 +60,12 @@ pnpm lint
 
 ## Solutions
 
-| Exercise | Topic | Document |
-|---|---|---|
-| 1 | Core game — matchmaking, board, turns, scoring, modes | [SOLUTION-1.md](SOLUTION-1.md) |
-| 2 | Test suite — strategy, coverage, and rationale | [SOLUTION-2.md](SOLUTION-2.md) |
-| 3 | Design — concurrency and disconnection handling | [SOLUTION-3.md](SOLUTION-3.md) |
-| 4 | Design — Spectator Mode (live + replay) | [SOLUTION-4.md](SOLUTION-4.md) |
+| Exercise | Topic                                                 | Document                       |
+| -------- | ----------------------------------------------------- | ------------------------------ |
+| 1        | Core game — matchmaking, board, turns, scoring, modes | [SOLUTION-1.md](SOLUTION-1.md) |
+| 2        | Test suite — strategy, coverage, and rationale        | [SOLUTION-2.md](SOLUTION-2.md) |
+| 3        | Design — concurrency and disconnection handling       | [SOLUTION-3.md](SOLUTION-3.md) |
+| 4        | Design — Spectator Mode (live + replay)               | [SOLUTION-4.md](SOLUTION-4.md) |
 
 ---
 

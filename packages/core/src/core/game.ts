@@ -1,9 +1,21 @@
-import { applyShot, areAllShipsPlaced, createEmptyGrid, countHiddenCells, applyPlacement } from './board';
-import { Clock } from './clock';
-import { buildFleet } from './fleet';
-import { Rng } from './rng';
-import { GameRuleError, decideFirstPlayer, getOpponentId, isGameOver, validateShot } from './rules';
-import { awardScore } from './scoring';
+import {
+  applyShot,
+  areAllShipsPlaced,
+  createEmptyGrid,
+  countHiddenCells,
+  applyPlacement,
+} from "./board";
+import { Clock } from "./clock";
+import { buildFleet } from "./fleet";
+import { Rng } from "./rng";
+import {
+  GameRuleError,
+  decideFirstPlayer,
+  getOpponentId,
+  isGameOver,
+  validateShot,
+} from "./rules";
+import { awardScore } from "./scoring";
 import {
   Coordinate,
   GameConfig,
@@ -13,7 +25,7 @@ import {
   ShipOrientation,
   ShipType,
   ShotResult,
-} from './types';
+} from "./types";
 
 export interface ShipPlacement {
   shipId: string;
@@ -43,7 +55,7 @@ export function createGame(opts: {
   const now = opts.clock.now();
   return {
     id: opts.id,
-    status: 'lobby',
+    status: "lobby",
     config: opts.config,
     players: { [opts.host.id]: opts.host },
     activePlayerId: null,
@@ -59,18 +71,30 @@ export function addSecondPlayer(
   joiner: PlayerState,
   deps: { idFactory: () => string },
 ): GameState {
-  if (game.status !== 'lobby') {
-    throw new GameRuleError('NOT_PLAYING', `Cannot join: game status is ${game.status}.`);
+  if (game.status !== "lobby") {
+    throw new GameRuleError(
+      "NOT_PLAYING",
+      `Cannot join: game status is ${game.status}.`,
+    );
   }
   if (Object.keys(game.players).length >= 2) {
-    throw new GameRuleError('INVALID_PLAYER_COUNT', 'Game already has two players.');
+    throw new GameRuleError(
+      "INVALID_PLAYER_COUNT",
+      "Game already has two players.",
+    );
   }
   const [hostId] = Object.keys(game.players);
-  const host = { ...game.players[hostId], ships: buildFleet(game.config.fleet, deps.idFactory) };
-  const second = { ...joiner, ships: buildFleet(game.config.fleet, deps.idFactory) };
+  const host = {
+    ...game.players[hostId],
+    ships: buildFleet(game.config.fleet, deps.idFactory),
+  };
+  const second = {
+    ...joiner,
+    ships: buildFleet(game.config.fleet, deps.idFactory),
+  };
   return {
     ...game,
-    status: 'placement',
+    status: "placement",
     players: { [hostId]: host, [second.id]: second },
   };
 }
@@ -81,15 +105,23 @@ export function placeFleet(
   placements: readonly ShipPlacement[],
   deps: { clock: Clock; rng: Rng },
 ): GameState {
-  if (game.status !== 'placement') {
-    throw new GameRuleError('NOT_PLAYING', `Cannot place: game status is ${game.status}.`);
+  if (game.status !== "placement") {
+    throw new GameRuleError(
+      "NOT_PLAYING",
+      `Cannot place: game status is ${game.status}.`,
+    );
   }
   const player = game.players[playerId];
   if (!player) {
-    throw new GameRuleError('UNKNOWN_PLAYER', `Unknown player: ${playerId}.`);
+    throw new GameRuleError("UNKNOWN_PLAYER", `Unknown player: ${playerId}.`);
   }
   const placed = buildPlacedFleet(player.ships, placements);
-  const updatedPlayer: PlayerState = { ...player, grid: placed.grid, ships: placed.ships, ready: true };
+  const updatedPlayer: PlayerState = {
+    ...player,
+    grid: placed.grid,
+    ships: placed.ships,
+    ready: true,
+  };
   const players = { ...game.players, [playerId]: updatedPlayer };
   const allReady =
     Object.keys(players).length === 2 &&
@@ -103,18 +135,27 @@ function buildPlacedFleet(
   placements: readonly ShipPlacement[],
 ): { grid: ReturnType<typeof createEmptyGrid>; ships: Ship[] } {
   if (placements.length !== ships.length) {
-    throw new GameRuleError('NOT_PLAYING', `Must place all ${ships.length} ships at once.`);
+    throw new GameRuleError(
+      "NOT_PLAYING",
+      `Must place all ${ships.length} ships at once.`,
+    );
   }
   const byId = new Map(ships.map((s) => [s.id, s]));
   let grid = createEmptyGrid();
   const placed: Ship[] = [];
   for (const p of placements) {
     const ship = byId.get(p.shipId);
-    if (!ship) throw new GameRuleError('NOT_PLAYING', `Unknown ship id: ${p.shipId}.`);
-    const result = applyPlacement(grid, ship, { r: p.r, c: p.c }, p.orientation);
+    if (!ship)
+      throw new GameRuleError("NOT_PLAYING", `Unknown ship id: ${p.shipId}.`);
+    const result = applyPlacement(
+      grid,
+      ship,
+      { r: p.r, c: p.c },
+      p.orientation,
+    );
     if (!result) {
       throw new GameRuleError(
-        'NOT_PLAYING',
+        "NOT_PLAYING",
         `Cannot place ${p.shipId} at (${p.r}, ${p.c}) ${p.orientation}.`,
       );
     }
@@ -124,12 +165,15 @@ function buildPlacedFleet(
   return { grid, ships: placed };
 }
 
-function startPlaying(game: GameState, deps: { clock: Clock; rng: Rng }): GameState {
+function startPlaying(
+  game: GameState,
+  deps: { clock: Clock; rng: Rng },
+): GameState {
   const firstPlayer = decideFirstPlayer(deps.rng, Object.keys(game.players));
   const now = deps.clock.now();
   return {
     ...game,
-    status: 'playing',
+    status: "playing",
     activePlayerId: firstPlayer,
     lastActionTime: now,
     turnDeadlineAt: now + game.config.turnTimerMs,
@@ -177,7 +221,15 @@ export function processShot(
     clock: deps.clock,
   });
 
-  return { game: nextGame, result: buildShotResult(shot.hit, shipUpdate.sunkShipType, scoreAwarded, gameOver) };
+  return {
+    game: nextGame,
+    result: buildShotResult(
+      shot.hit,
+      shipUpdate.sunkShipType,
+      scoreAwarded,
+      gameOver,
+    ),
+  };
 }
 
 function buildShotResult(
@@ -186,7 +238,13 @@ function buildShotResult(
   scoreAwarded: number,
   gameOver: boolean,
 ): ShotResult {
-  return { hit, sunkShipType, gameOver, scoreAwarded, cellStatus: hit ? 'hit' : 'miss' };
+  return {
+    hit,
+    sunkShipType,
+    gameOver,
+    scoreAwarded,
+    cellStatus: hit ? "hit" : "miss",
+  };
 }
 
 function applyHitToShips(
@@ -216,7 +274,7 @@ function applyShotResult(args: {
   opponentId: string;
   shooter: PlayerState;
   opponent: PlayerState;
-  newOpponentGrid: PlayerState['grid'];
+  newOpponentGrid: PlayerState["grid"];
   newOpponentShips: Ship[];
   scoreAwarded: number;
   consecutiveHits: number;
@@ -241,26 +299,35 @@ function applyShotResult(args: {
     activePlayerId: args.gameOver ? null : args.opponentId,
     lastActionTime: now,
     turnDeadlineAt: args.gameOver ? null : now + args.game.config.turnTimerMs,
-    status: args.gameOver ? 'finished' : 'playing',
+    status: args.gameOver ? "finished" : "playing",
     winnerId: args.gameOver ? args.shooterId : null,
   };
 }
 
-export function forfeitGame(game: GameState, leavingPlayerId: string): GameState {
-  if (game.status === 'finished') return game;
+export function forfeitGame(
+  game: GameState,
+  leavingPlayerId: string,
+): GameState {
+  if (game.status === "finished") return game;
   const opponentId = getOpponentId(game, leavingPlayerId);
   return {
     ...game,
-    status: 'finished',
+    status: "finished",
     activePlayerId: null,
     turnDeadlineAt: null,
     winnerId: opponentId,
   };
 }
 
-export function handleTurnTimeout(game: GameState, deps: { clock: Clock }): GameState {
-  if (game.status !== 'playing' || !game.activePlayerId) {
-    throw new GameRuleError('NOT_PLAYING', 'Cannot handle turn timeout outside of play.');
+export function handleTurnTimeout(
+  game: GameState,
+  deps: { clock: Clock },
+): GameState {
+  if (game.status !== "playing" || !game.activePlayerId) {
+    throw new GameRuleError(
+      "NOT_PLAYING",
+      "Cannot handle turn timeout outside of play.",
+    );
   }
   const opponentId = getOpponentId(game, game.activePlayerId);
   const now = deps.clock.now();

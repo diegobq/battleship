@@ -1,8 +1,12 @@
-import { FleetConfig, GameMode, ShipType } from '../core/types';
-import { ApiError } from './api-error';
+import { FleetConfig, GameMode, ShipType } from "../core/types";
+import { ApiError } from "./api-error";
 
-const ALLOWED_MODES: readonly GameMode[] = ['Elite', 'Classic', 'Risk'];
-const ALLOWED_SHIP_TYPES: readonly ShipType[] = ['Cruiser', 'Destroyer', 'Submarine'];
+const ALLOWED_MODES: readonly GameMode[] = ["Elite", "Classic", "Risk"];
+const ALLOWED_SHIP_TYPES: readonly ShipType[] = [
+  "Cruiser",
+  "Destroyer",
+  "Submarine",
+];
 
 const MAX_PLAYER_NAME = 32;
 const MAX_GAME_ID = 64;
@@ -32,29 +36,49 @@ export interface LobbyGameDto {
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
+  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-function requireString(record: Record<string, unknown>, key: string, max: number): string {
+function requireString(
+  record: Record<string, unknown>,
+  key: string,
+  max: number,
+): string {
   const v = record[key];
-  if (typeof v !== 'string' || v.trim().length === 0) {
-    throw new ApiError(400, 'BAD_REQUEST', `'${key}' is required and must be a non-empty string.`);
+  if (typeof v !== "string" || v.trim().length === 0) {
+    throw new ApiError(
+      400,
+      "BAD_REQUEST",
+      `'${key}' is required and must be a non-empty string.`,
+    );
   }
   const trimmed = v.trim();
   if (trimmed.length > max) {
-    throw new ApiError(400, 'BAD_REQUEST', `'${key}' must be at most ${max} characters.`);
+    throw new ApiError(
+      400,
+      "BAD_REQUEST",
+      `'${key}' must be at most ${max} characters.`,
+    );
   }
   return trimmed;
 }
 
 export function parseCreateGameRequest(body: unknown): CreateGameRequest {
   if (!isRecord(body)) {
-    throw new ApiError(400, 'BAD_REQUEST', 'Request body must be a JSON object.');
+    throw new ApiError(
+      400,
+      "BAD_REQUEST",
+      "Request body must be a JSON object.",
+    );
   }
-  const playerName = requireString(body, 'playerName', MAX_PLAYER_NAME);
-  const mode = requireString(body, 'mode', 16);
+  const playerName = requireString(body, "playerName", MAX_PLAYER_NAME);
+  const mode = requireString(body, "mode", 16);
   if (!ALLOWED_MODES.includes(mode as GameMode)) {
-    throw new ApiError(400, 'BAD_REQUEST', `'mode' must be one of: ${ALLOWED_MODES.join(', ')}.`);
+    throw new ApiError(
+      400,
+      "BAD_REQUEST",
+      `'mode' must be one of: ${ALLOWED_MODES.join(", ")}.`,
+    );
   }
   return {
     mode: mode as GameMode,
@@ -67,18 +91,31 @@ export function parseCreateGameRequest(body: unknown): CreateGameRequest {
 function parseFleet(raw: unknown): FleetConfig | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (!isRecord(raw)) {
-    throw new ApiError(400, 'BAD_REQUEST', "'fleet' must be an object mapping ship types to counts.");
+    throw new ApiError(
+      400,
+      "BAD_REQUEST",
+      "'fleet' must be an object mapping ship types to counts.",
+    );
   }
   const out: FleetConfig = {};
   let total = 0;
   for (const [k, v] of Object.entries(raw)) {
     if (!ALLOWED_SHIP_TYPES.includes(k as ShipType)) {
-      throw new ApiError(400, 'BAD_REQUEST', `Unknown ship type in fleet: '${k}'.`);
-    }
-    if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > MAX_FLEET_COUNT_PER_TYPE) {
       throw new ApiError(
         400,
-        'BAD_REQUEST',
+        "BAD_REQUEST",
+        `Unknown ship type in fleet: '${k}'.`,
+      );
+    }
+    if (
+      typeof v !== "number" ||
+      !Number.isInteger(v) ||
+      v < 0 ||
+      v > MAX_FLEET_COUNT_PER_TYPE
+    ) {
+      throw new ApiError(
+        400,
+        "BAD_REQUEST",
         `Fleet count for '${k}' must be an integer between 0 and ${MAX_FLEET_COUNT_PER_TYPE}.`,
       );
     }
@@ -86,7 +123,11 @@ function parseFleet(raw: unknown): FleetConfig | undefined {
     total += v;
   }
   if (total === 0) {
-    throw new ApiError(400, 'BAD_REQUEST', "'fleet' must contain at least one ship.");
+    throw new ApiError(
+      400,
+      "BAD_REQUEST",
+      "'fleet' must contain at least one ship.",
+    );
   }
   return out;
 }
@@ -94,14 +135,14 @@ function parseFleet(raw: unknown): FleetConfig | undefined {
 function parseTurnTimerMs(raw: unknown): number | undefined {
   if (raw === undefined || raw === null) return undefined;
   if (
-    typeof raw !== 'number' ||
+    typeof raw !== "number" ||
     !Number.isFinite(raw) ||
     raw < MIN_TURN_TIMER_MS ||
     raw > MAX_TURN_TIMER_MS
   ) {
     throw new ApiError(
       400,
-      'BAD_REQUEST',
+      "BAD_REQUEST",
       `'turnTimerMs' must be a number between ${MIN_TURN_TIMER_MS} and ${MAX_TURN_TIMER_MS}.`,
     );
   }
@@ -110,10 +151,14 @@ function parseTurnTimerMs(raw: unknown): number | undefined {
 
 export function parseJoinGameRequest(body: unknown): JoinGameRequest {
   if (!isRecord(body)) {
-    throw new ApiError(400, 'BAD_REQUEST', 'Request body must be a JSON object.');
+    throw new ApiError(
+      400,
+      "BAD_REQUEST",
+      "Request body must be a JSON object.",
+    );
   }
   return {
-    gameId: requireString(body, 'gameId', MAX_GAME_ID),
-    playerName: requireString(body, 'playerName', MAX_PLAYER_NAME),
+    gameId: requireString(body, "gameId", MAX_GAME_ID),
+    playerName: requireString(body, "playerName", MAX_PLAYER_NAME),
   };
 }

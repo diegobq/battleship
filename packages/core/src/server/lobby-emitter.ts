@@ -17,7 +17,7 @@ export class LobbyEmitter {
   }
 }
 
-const GLOBAL_KEY = Symbol.for('battleship.lobbyEmitter');
+const GLOBAL_KEY = Symbol.for("battleship.lobbyEmitter");
 
 interface GlobalWithEmitter {
   [GLOBAL_KEY]?: LobbyEmitter;

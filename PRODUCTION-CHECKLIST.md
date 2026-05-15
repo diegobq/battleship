@@ -312,11 +312,6 @@
 
 ## Code Quality
 
-- **Prettier** — **P1**
-  - Gap: no `.prettierrc`. ESLint enforces some rules but not formatting consistency.
-  - Impact: noisy diffs from formatter disagreements between contributors.
-  - Approach: `prettier` + `eslint-config-prettier` to disable conflicting ESLint rules.
-
 - **Husky + lint-staged** — **P1**
   - Gap: no pre-commit hooks.
   - Impact: lint / format errors caught only in CI.

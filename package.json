@@ -4,6 +4,8 @@
   "scripts": {
     "dev": "pnpm --filter @battleship/web dev",
     "build": "pnpm --filter @battleship/web build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "start": "pnpm --filter @battleship/web start",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
@@ -13,6 +15,8 @@
   },
   "devDependencies": {
     "eslint": "^9",
-    "eslint-config-next": "16.2.6"
+    "eslint-config-next": "16.2.6",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.5.3"
   }
 }
