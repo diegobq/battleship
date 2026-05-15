@@ -352,6 +352,10 @@ Modes:
 - **Risk**: 10 pts/hit, −1 pt/miss, floor at 0.
 - **Elite**: full scoring (accuracy + streak multiplier + reflex + miss penalty), floor at 0.
 
+### Scoring Strategy Pattern
+
+Each game mode is encapsulated by a concrete `ScoringStrategy` implementation (`classicStrategy`, `riskStrategy`, `EliteStrategy`). The interface exposes two methods — `calculateHitScore` and `calculateMissPenalty` — and is the sole extension point for new modes. A `resolveScoringStrategy(mode, eliteConfig?)` factory resolves the right strategy from a `switch` statement; TypeScript's exhaustiveness checking ensures a build-time error if a new `GameMode` union member is added without a corresponding case. `EliteStrategy` is a class because it carries a resolved `EliteConfig` instance; `classicStrategy` and `riskStrategy` are plain objects because they are stateless. Adding a new game mode requires three steps: extend the `GameMode` union, implement `ScoringStrategy`, and add one `case` to the factory — `awardScore` and all callers remain untouched. The `ScoringStrategy` interface is exported so future packages (e.g. a plugin system or an A/B test scaffold) can inject custom strategies without forking the core.
+
 ---
 
 ## Real-time Transport: Custom Node Server
