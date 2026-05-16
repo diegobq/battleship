@@ -1,6 +1,6 @@
-'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { WsConnectionState } from './types';
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { WsConnectionState } from "./types";
 
 export type { WsConnectionState };
 
@@ -18,7 +18,9 @@ export interface UseWebSocketReturn {
 
 export function useWebSocket(opts: UseWebSocketOptions): UseWebSocketReturn {
   const { url, onMessage, maxReconnects = 5, baseBackoffMs = 1_000 } = opts;
-  const [state, setState] = useState<WsConnectionState>(url ? 'connecting' : 'idle');
+  const [state, setState] = useState<WsConnectionState>(
+    url ? "connecting" : "idle",
+  );
   const socketRef = useRef<WebSocket | null>(null);
   const onMessageRef = useRef(onMessage);
 
@@ -34,22 +36,22 @@ export function useWebSocket(opts: UseWebSocketOptions): UseWebSocketReturn {
 
     function connect(): void {
       if (cancelled) return;
-      setState('connecting');
+      setState("connecting");
       const ws = new WebSocket(url!);
       socketRef.current = ws;
 
       ws.onopen = () => {
         attempts = 0;
-        setState('open');
+        setState("open");
       };
       ws.onmessage = (e) => {
-        const data = typeof e.data === 'string' ? e.data : '';
+        const data = typeof e.data === "string" ? e.data : "";
         if (data) onMessageRef.current?.(data);
       };
-      ws.onerror = () => setState('error');
+      ws.onerror = () => setState("error");
       ws.onclose = () => {
         if (cancelled) return;
-        setState('closed');
+        setState("closed");
         if (attempts < maxReconnects) {
           const delay = baseBackoffMs * Math.pow(2, attempts);
           attempts += 1;

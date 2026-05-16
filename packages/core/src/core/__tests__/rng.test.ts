@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { makeSeededRng, makeSystemRng } from '../rng';
+import { describe, expect, it } from "vitest";
+import { makeSeededRng, makeSystemRng } from "../rng";
 
-describe('makeSystemRng', () => {
-  it('produces values in the [0, 1) range', () => {
+describe("makeSystemRng", () => {
+  it("produces values in the [0, 1) range", () => {
     const rng = makeSystemRng();
     for (let i = 0; i < 100; i++) {
       const value = rng.next();
@@ -12,8 +12,8 @@ describe('makeSystemRng', () => {
   });
 });
 
-describe('makeSeededRng', () => {
-  it('produces values in the [0, 1) range', () => {
+describe("makeSeededRng", () => {
+  it("produces values in the [0, 1) range", () => {
     const rng = makeSeededRng(42);
     for (let i = 0; i < 100; i++) {
       const value = rng.next();
@@ -22,7 +22,7 @@ describe('makeSeededRng', () => {
     }
   });
 
-  it('is deterministic for the same seed', () => {
+  it("is deterministic for the same seed", () => {
     const a = makeSeededRng(42);
     const b = makeSeededRng(42);
     for (let i = 0; i < 50; i++) {
@@ -30,7 +30,7 @@ describe('makeSeededRng', () => {
     }
   });
 
-  it('produces different sequences for different seeds', () => {
+  it("produces different sequences for different seeds", () => {
     const a = makeSeededRng(1);
     const b = makeSeededRng(2);
     const seqA: number[] = [];
@@ -42,7 +42,7 @@ describe('makeSeededRng', () => {
     expect(seqA).not.toEqual(seqB);
   });
 
-  it('does not loop trivially within 10000 draws', () => {
+  it("does not loop trivially within 10000 draws", () => {
     const rng = makeSeededRng(123);
     const seen = new Set<number>();
     for (let i = 0; i < 10_000; i++) {

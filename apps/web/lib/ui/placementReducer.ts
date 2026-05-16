@@ -1,6 +1,11 @@
-import { applyPlacement, canPlace, createEmptyGrid } from '@battleship/core';
-import { BoardCellStatus, Coordinate, Ship, ShipOrientation } from '@battleship/core';
-import { PlacementAction, PlacementState } from './types';
+import { applyPlacement, canPlace, createEmptyGrid } from "@battleship/core";
+import {
+  BoardCellStatus,
+  Coordinate,
+  Ship,
+  ShipOrientation,
+} from "@battleship/core";
+import { PlacementAction, PlacementState } from "./types";
 
 export type { PlacementAction, PlacementState };
 
@@ -16,31 +21,39 @@ export function initPlacementState(initialShips: Ship[]): PlacementState {
     grid: createEmptyGrid(),
     ships: reset,
     selectedShipId: reset[0]?.id ?? null,
-    orientation: 'horizontal',
+    orientation: "horizontal",
   };
 }
 
-export function placementReducer(state: PlacementState, action: PlacementAction): PlacementState {
+export function placementReducer(
+  state: PlacementState,
+  action: PlacementAction,
+): PlacementState {
   switch (action.type) {
-    case 'SELECT':
+    case "SELECT":
       return state.ships.some((s) => s.id === action.shipId)
         ? { ...state, selectedShipId: action.shipId }
         : state;
-    case 'ROTATE':
+    case "ROTATE":
       return {
         ...state,
-        orientation: state.orientation === 'horizontal' ? 'vertical' : 'horizontal',
+        orientation:
+          state.orientation === "horizontal" ? "vertical" : "horizontal",
       };
-    case 'PLACE':
+    case "PLACE":
       return applyPlaceAction(state, action.r, action.c);
-    case 'REMOVE':
+    case "REMOVE":
       return applyRemoveAction(state, action.shipId);
-    case 'RESET':
+    case "RESET":
       return initPlacementState(state.ships);
   }
 }
 
-function applyPlaceAction(state: PlacementState, r: number, c: number): PlacementState {
+function applyPlaceAction(
+  state: PlacementState,
+  r: number,
+  c: number,
+): PlacementState {
   if (!state.selectedShipId) return state;
   const ship = state.ships.find((s) => s.id === state.selectedShipId);
   if (!ship || ship.placed) return state;
@@ -56,11 +69,16 @@ function applyPlaceAction(state: PlacementState, r: number, c: number): Placemen
   };
 }
 
-function applyRemoveAction(state: PlacementState, shipId: string): PlacementState {
+function applyRemoveAction(
+  state: PlacementState,
+  shipId: string,
+): PlacementState {
   const ship = state.ships.find((s) => s.id === shipId);
   if (!ship || !ship.placed) return state;
   const ships = state.ships.map((s) =>
-    s.id === shipId ? { ...s, placed: false, positions: [], orientation: undefined } : s,
+    s.id === shipId
+      ? { ...s, placed: false, positions: [], orientation: undefined }
+      : s,
   );
   const grid = rebuildGridFromShips(ships);
   return { ...state, grid, ships, selectedShipId: shipId };
@@ -71,13 +89,17 @@ function rebuildGridFromShips(ships: readonly Ship[]): BoardCellStatus[][] {
   for (const s of ships) {
     if (!s.placed) continue;
     for (const p of s.positions) {
-      grid[p.r][p.c] = 'ship';
+      grid[p.r][p.c] = "ship";
     }
   }
   return grid;
 }
 
-export function canPreviewPlacement(state: PlacementState, r: number, c: number): boolean {
+export function canPreviewPlacement(
+  state: PlacementState,
+  r: number,
+  c: number,
+): boolean {
   if (!state.selectedShipId) return false;
   const ship = state.ships.find((s) => s.id === state.selectedShipId);
   if (!ship || ship.placed) return false;

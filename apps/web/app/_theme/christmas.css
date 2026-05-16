@@ -1,5 +1,4 @@
-/* Christmas skin: marketing-team overrides for the holiday season.
- * Activate by setting <html data-theme="christmas">. No component code changes. */
+/* Activate by setting <html data-theme="christmas"> */
 
 [data-theme="christmas"] {
   --surface-bg: #0a2b16;

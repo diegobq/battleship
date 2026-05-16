@@ -1,52 +1,44 @@
-'use client';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { LobbyGameDto } from '@battleship/core';
-import { setPlayerId } from '@/lib/ui/playerSession';
-
-const REFRESH_INTERVAL_MS = 4_000;
+"use client";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { LobbyGameDto } from "@battleship/core";
+import { setPlayerId } from "@/lib/ui/playerSession";
 
 export default function LobbyTable() {
   const router = useRouter();
   const [games, setGames] = useState<LobbyGameDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState("");
   const [joining, setJoining] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    async function refresh() {
+    const es = new EventSource("/api/games/stream");
+    es.onmessage = (e) => {
       try {
-        const r = await fetch('/api/games', { cache: 'no-store' });
-        const data = await r.json();
-        if (!cancelled) setGames(data.games ?? []);
+        const data = JSON.parse(e.data) as { games: LobbyGameDto[] };
+        setGames(data.games ?? []);
+        setLoading(false);
       } catch {
-        // Ignore transient fetch failures; next tick will retry.
-      } finally {
-        if (!cancelled) setLoading(false);
+        // ignore malformed events
       }
-    }
-    refresh();
-    const t = setInterval(refresh, REFRESH_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
     };
+    es.onerror = () => setLoading(false);
+    return () => es.close();
   }, []);
 
   async function handleJoin(gameId: string) {
     const trimmed = playerName.trim();
     if (!trimmed) {
-      setError('Enter your name first.');
+      setError("Enter your name first.");
       return;
     }
     setJoining(gameId);
     setError(null);
     try {
-      const r = await fetch('/api/game/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const r = await fetch("/api/game/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gameId, playerName: trimmed }),
       });
       if (!r.ok) {
@@ -76,7 +68,11 @@ export default function LobbyTable() {
         />
       </label>
       {error && (
-        <p role="alert" className="text-sm" style={{ color: 'var(--brand-danger)' }}>
+        <p
+          role="alert"
+          className="text-sm"
+          style={{ color: "var(--brand-danger)" }}
+        >
           {error}
         </p>
       )}
@@ -92,18 +88,24 @@ export default function LobbyTable() {
               className="rounded border border-[var(--surface-elevated)] bg-[var(--surface-muted)] p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
             >
               <div className="flex flex-col">
-                <span className="font-medium">{g.hostName}</span>
+                <span className="font-medium">
+                  {g.gameName ?? `${g.hostName}'s game`}
+                </span>
                 <span className="text-xs opacity-70">
-                  Mode: {g.mode} · Timer: {Math.round(g.turnTimerMs / 1000)}s · ID: {g.id}
+                  Host: {g.hostName} · Mode: {g.mode} · Timer:{" "}
+                  {Math.round(g.turnTimerMs / 1000)}s · ID: {g.id}
                 </span>
               </div>
               <button
                 onClick={() => handleJoin(g.id)}
                 disabled={joining !== null}
                 className="rounded px-4 py-2 font-semibold disabled:opacity-50"
-                style={{ background: 'var(--brand-primary)', color: 'var(--surface-fg)' }}
+                style={{
+                  background: "var(--brand-primary)",
+                  color: "var(--surface-fg)",
+                }}
               >
-                {joining === g.id ? 'Joining…' : 'Join'}
+                {joining === g.id ? "Joining…" : "Join"}
               </button>
             </li>
           ))}

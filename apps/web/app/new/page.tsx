@@ -1,20 +1,34 @@
-'use client';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { GameMode } from '@battleship/core';
-import { setPlayerId } from '@/lib/ui/playerSession';
+"use client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { GameMode } from "@battleship/core";
+import { setPlayerId } from "@/lib/ui/playerSession";
 
 const MODES: { value: GameMode; label: string; description: string }[] = [
-  { value: 'Classic', label: 'Classic', description: '1 point per hit. No bonuses, no penalties.' },
-  { value: 'Risk', label: 'Risk', description: '10 points per hit, −1 per miss. Floor at 0.' },
-  { value: 'Elite', label: 'Elite', description: 'Full scoring: accuracy bonus, streak multipliers, reflex bonus, miss penalty.' },
+  {
+    value: "Classic",
+    label: "Classic",
+    description: "1 point per hit. No bonuses, no penalties.",
+  },
+  {
+    value: "Risk",
+    label: "Risk",
+    description: "10 points per hit, −1 per miss. Floor at 0.",
+  },
+  {
+    value: "Elite",
+    label: "Elite",
+    description:
+      "Full scoring: accuracy bonus, streak multipliers, reflex bonus, miss penalty.",
+  },
 ];
 
 export default function NewGamePage() {
   const router = useRouter();
-  const [playerName, setPlayerName] = useState('');
-  const [mode, setMode] = useState<GameMode>('Classic');
+  const [playerName, setPlayerName] = useState("");
+  const [gameName, setGameName] = useState("");
+  const [mode, setMode] = useState<GameMode>("Classic");
   const [cruiser, setCruiser] = useState(1);
   const [destroyer, setDestroyer] = useState(1);
   const [submarine, setSubmarine] = useState(1);
@@ -25,19 +39,24 @@ export default function NewGamePage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!playerName.trim()) {
-      setError('Enter your name first.');
+      setError("Enter your name first.");
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const r = await fetch('/api/game/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const r = await fetch("/api/game/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode,
           playerName: playerName.trim(),
-          fleet: { Cruiser: cruiser, Destroyer: destroyer, Submarine: submarine },
+          gameName: gameName.trim() || undefined,
+          fleet: {
+            Cruiser: cruiser,
+            Destroyer: destroyer,
+            Submarine: submarine,
+          },
           turnTimerMs: turnTimerSec * 1000,
         }),
       });
@@ -56,7 +75,9 @@ export default function NewGamePage() {
 
   return (
     <main className="flex-1 mx-auto w-full max-w-xl px-4 py-8 sm:py-12">
-      <Link href="/" className="text-sm opacity-70 hover:opacity-100">← Back to lobby</Link>
+      <Link href="/" className="text-sm opacity-70 hover:opacity-100">
+        ← Back to lobby
+      </Link>
       <h1 className="text-3xl font-bold mt-3 mb-6">Create new game</h1>
       <form onSubmit={submit} className="flex flex-col gap-5">
         <label className="flex flex-col gap-1 text-sm">
@@ -70,12 +91,23 @@ export default function NewGamePage() {
           />
         </label>
 
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="opacity-80">Game name (optional)</span>
+          <input
+            value={gameName}
+            onChange={(e) => setGameName(e.target.value)}
+            maxLength={64}
+            placeholder="e.g. Friday Night Battle"
+            className="rounded px-3 py-2 bg-[var(--surface-muted)] border border-[var(--surface-elevated)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+          />
+        </label>
+
         <fieldset className="flex flex-col gap-2">
           <legend className="opacity-80 text-sm mb-1">Game mode</legend>
           {MODES.map((m) => (
             <label
               key={m.value}
-              className={`flex flex-col gap-1 rounded border p-3 cursor-pointer ${mode === m.value ? 'border-[var(--brand-primary)]' : 'border-[var(--surface-elevated)]'}`}
+              className={`flex flex-col gap-1 rounded border p-3 cursor-pointer ${mode === m.value ? "border-[var(--brand-primary)]" : "border-[var(--surface-elevated)]"}`}
             >
               <span className="flex items-center gap-2">
                 <input
@@ -93,11 +125,25 @@ export default function NewGamePage() {
         </fieldset>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="opacity-80 text-sm mb-1">Fleet (ships per type)</legend>
+          <legend className="opacity-80 text-sm mb-1">
+            Fleet (ships per type)
+          </legend>
           <div className="grid grid-cols-3 gap-3">
-            <FleetCount label="Cruiser (3-cell)" value={cruiser} setValue={setCruiser} />
-            <FleetCount label="Destroyer (2-cell)" value={destroyer} setValue={setDestroyer} />
-            <FleetCount label="Submarine (1-cell)" value={submarine} setValue={setSubmarine} />
+            <FleetCount
+              label="Cruiser (3-cell)"
+              value={cruiser}
+              setValue={setCruiser}
+            />
+            <FleetCount
+              label="Destroyer (2-cell)"
+              value={destroyer}
+              setValue={setDestroyer}
+            />
+            <FleetCount
+              label="Submarine (1-cell)"
+              value={submarine}
+              setValue={setSubmarine}
+            />
           </div>
         </fieldset>
 
@@ -114,7 +160,11 @@ export default function NewGamePage() {
         </label>
 
         {error && (
-          <p role="alert" className="text-sm" style={{ color: 'var(--brand-danger)' }}>
+          <p
+            role="alert"
+            className="text-sm"
+            style={{ color: "var(--brand-danger)" }}
+          >
             {error}
           </p>
         )}
@@ -123,9 +173,12 @@ export default function NewGamePage() {
           type="submit"
           disabled={busy}
           className="rounded px-5 py-3 font-semibold disabled:opacity-50"
-          style={{ background: 'var(--brand-primary)', color: 'var(--surface-fg)' }}
+          style={{
+            background: "var(--brand-primary)",
+            color: "var(--surface-fg)",
+          }}
         >
-          {busy ? 'Creating…' : 'Create game'}
+          {busy ? "Creating…" : "Create game"}
         </button>
       </form>
     </main>
@@ -149,7 +202,9 @@ function FleetCount({
         min={0}
         max={10}
         value={value}
-        onChange={(e) => setValue(Math.max(0, Math.min(10, Number(e.target.value) || 0)))}
+        onChange={(e) =>
+          setValue(Math.max(0, Math.min(10, Number(e.target.value) || 0)))
+        }
         className="rounded px-2 py-1 bg-[var(--surface-muted)] border border-[var(--surface-elevated)]"
       />
     </label>

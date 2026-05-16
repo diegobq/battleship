@@ -1,6 +1,6 @@
-'use client';
-import { Ship } from '@battleship/core';
-import styles from './ShipPalette.module.css';
+"use client";
+import { Ship } from "@battleship/core";
+import styles from "./ShipPalette.module.css";
 
 export interface ShipPaletteProps {
   ships: Ship[];
@@ -9,14 +9,23 @@ export interface ShipPaletteProps {
   onRemove?: (shipId: string) => void;
 }
 
-export default function ShipPalette({ ships, selectedShipId, onSelect, onRemove }: ShipPaletteProps) {
+export default function ShipPalette({
+  ships,
+  selectedShipId,
+  onSelect,
+  onRemove,
+}: ShipPaletteProps) {
   return (
     <ul className={styles.palette} role="list" aria-label="Fleet">
       {ships.map((s) => {
         const selected = s.id === selectedShipId;
-        const cls = [styles.ship, selected ? styles.selected : '', s.placed ? styles.placed : '']
+        const cls = [
+          styles.ship,
+          selected ? styles.selected : "",
+          s.placed ? styles.placed : "",
+        ]
           .filter(Boolean)
-          .join(' ');
+          .join(" ");
         return (
           <li key={s.id}>
             <button
@@ -24,7 +33,7 @@ export default function ShipPalette({ ships, selectedShipId, onSelect, onRemove 
               className={cls}
               onClick={() => onSelect(s.id)}
               aria-pressed={selected}
-              style={{ width: '100%', textAlign: 'left' }}
+              style={{ width: "100%", textAlign: "left" }}
             >
               <span className={styles.cells} aria-hidden>
                 {Array.from({ length: s.length }).map((_, i) => (
@@ -43,7 +52,7 @@ export default function ShipPalette({ ships, selectedShipId, onSelect, onRemove 
                     onRemove(s.id);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
+                    if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       e.stopPropagation();
                       onRemove(s.id);

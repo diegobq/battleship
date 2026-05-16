@@ -1,4 +1,4 @@
-import GameShell from '@/app/_components/game/GameShell';
+import GameShell from "@/app/_components/game/GameShell";
 
 export default async function GamePage({
   params,

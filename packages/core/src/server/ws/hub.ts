@@ -1,5 +1,9 @@
-import { GameState } from '../../core/types';
-import { ServerMessage, sanitizeGameStateFor, serializeServerMessage } from './protocol';
+import { GameState } from "../../core/types";
+import {
+  ServerMessage,
+  sanitizeGameStateFor,
+  serializeServerMessage,
+} from "./protocol";
 
 export interface HubSocket {
   send(data: string): void;
@@ -25,7 +29,7 @@ export class WebSocketHub {
     }
     const existing = game.get(playerId);
     if (existing) {
-      existing.socket.close(4000, 'Replaced by new connection.');
+      existing.socket.close(4000, "Replaced by new connection.");
     }
     game.set(playerId, { socket, playerId });
   }
@@ -40,25 +44,35 @@ export class WebSocketHub {
   sendTo(gameId: string, playerId: string, msg: ServerMessage): boolean {
     const conn = this.conns.get(gameId)?.get(playerId);
     if (!conn) return false;
-    if (conn.socket.readyState !== undefined && conn.socket.readyState !== OPEN_STATE) {
+    if (
+      conn.socket.readyState !== undefined &&
+      conn.socket.readyState !== OPEN_STATE
+    ) {
       return false;
     }
     conn.socket.send(serializeServerMessage(msg));
     return true;
   }
 
-  broadcast(gameId: string, factory: (playerId: string) => ServerMessage): void {
+  broadcast(
+    gameId: string,
+    factory: (playerId: string) => ServerMessage,
+  ): void {
     const game = this.conns.get(gameId);
     if (!game) return;
     for (const [playerId, conn] of game.entries()) {
-      if (conn.socket.readyState !== undefined && conn.socket.readyState !== OPEN_STATE) continue;
+      if (
+        conn.socket.readyState !== undefined &&
+        conn.socket.readyState !== OPEN_STATE
+      )
+        continue;
       conn.socket.send(serializeServerMessage(factory(playerId)));
     }
   }
 
   broadcastState(gameId: string, state: GameState): void {
     this.broadcast(gameId, (viewerId) => ({
-      type: 'GAME_STATE_UPDATE',
+      type: "GAME_STATE_UPDATE",
       payload: { state: sanitizeGameStateFor(state, viewerId) },
     }));
   }
@@ -74,7 +88,7 @@ export class WebSocketHub {
   }
 }
 
-const GLOBAL_KEY = Symbol.for('battleship.wsHub');
+const GLOBAL_KEY = Symbol.for("battleship.wsHub");
 
 interface GlobalWithHub {
   [GLOBAL_KEY]?: WebSocketHub;
@@ -86,6 +100,11 @@ export function getHub(): WebSocketHub {
     g[GLOBAL_KEY] = new WebSocketHub();
   }
   return g[GLOBAL_KEY]!;
+}
+
+export function isHubInitialized(): boolean {
+  const g = globalThis as unknown as GlobalWithHub;
+  return g[GLOBAL_KEY] !== undefined;
 }
 
 export function __resetHubForTests(): void {

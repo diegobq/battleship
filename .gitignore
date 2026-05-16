@@ -14,6 +14,13 @@ node_modules/
 # testing
 **/coverage
 
+# AI
+.claude/
+CLAUDE.md
+
+# personal documentation
+/docs
+
 # next.js
 /apps/web/.next/
 

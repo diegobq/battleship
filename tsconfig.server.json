@@ -1,17 +1,15 @@
 {
-    "extends": "./tsconfig.base.json",
-    "compilerOptions": {
-        "noEmit": false,
-        "baseUrl": ".",
-        "module": "commonjs",
-        "moduleResolution": "node",
-        "outDir": "dist",
-        "target": "ES2022",
-        "paths": {
-            "@battleship/core": ["./packages/core/src/index.ts"]
-        }
-    },
-    "include": [
-        "apps/web/server.ts"
-    ]
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "baseUrl": ".",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "target": "ES2022",
+    "paths": {
+      "@battleship/core": ["./packages/core/src/index.ts"]
+    }
+  },
+  "include": ["apps/web/server.ts"]
 }

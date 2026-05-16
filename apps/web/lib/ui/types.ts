@@ -1,8 +1,20 @@
-import { BoardCellStatus, GameState, Ship, ShipOrientation, ShipPlacement, ShipType } from '@battleship/core';
+import {
+  BoardCellStatus,
+  GameState,
+  Ship,
+  ShipOrientation,
+  ShipPlacement,
+  ShipType,
+} from "@battleship/core";
 
 // --- WebSocket ---
 
-export type WsConnectionState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
+export type WsConnectionState =
+  | "idle"
+  | "connecting"
+  | "open"
+  | "closed"
+  | "error";
 
 // --- Game context ---
 
@@ -13,7 +25,7 @@ export interface ShotEvent {
   hit: boolean;
   sunkShipType?: ShipType;
   scoreAwarded: number;
-  cellStatus: 'hit' | 'miss';
+  cellStatus: "hit" | "miss";
   at: number;
 }
 
@@ -21,7 +33,7 @@ export interface GameContextValue {
   state: GameState | null;
   gameId: string;
   playerId: string;
-  connection: 'connecting' | 'open' | 'closed' | 'error';
+  connection: "connecting" | "open" | "closed" | "error";
   lastShot: ShotEvent | null;
   turnExpiredPlayerId: string | null;
   errorMessage: string | null;
@@ -41,8 +53,8 @@ export interface PlacementState {
 }
 
 export type PlacementAction =
-  | { type: 'SELECT'; shipId: string }
-  | { type: 'ROTATE' }
-  | { type: 'PLACE'; r: number; c: number }
-  | { type: 'REMOVE'; shipId: string }
-  | { type: 'RESET' };
+  | { type: "SELECT"; shipId: string }
+  | { type: "ROTATE" }
+  | { type: "PLACE"; r: number; c: number }
+  | { type: "REMOVE"; shipId: string }
+  | { type: "RESET" };

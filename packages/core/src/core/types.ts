@@ -1,8 +1,8 @@
-export type GameMode = 'Elite' | 'Classic' | 'Risk';
+export type GameMode = "Elite" | "Classic" | "Risk";
 
-export type ShipType = 'Cruiser' | 'Destroyer' | 'Submarine';
+export type ShipType = "Cruiser" | "Destroyer" | "Submarine";
 
-export type ShipOrientation = 'horizontal' | 'vertical';
+export type ShipOrientation = "horizontal" | "vertical";
 
 export interface Coordinate {
   r: number; // 0 to 7 (A-H)
@@ -42,10 +42,12 @@ export interface GameConfig {
   mode: GameMode;
   fleet: FleetConfig;
   turnTimerMs: number;
+  boardSize?: number; // defaults to BOARD_SIZE (8) when absent
+  name?: string;
   elite?: Partial<EliteConfig>;
 }
 
-export type BoardCellStatus = 'empty' | 'ship' | 'hit' | 'miss';
+export type BoardCellStatus = "empty" | "ship" | "hit" | "miss";
 
 export interface PlayerState {
   id: string;
@@ -57,7 +59,7 @@ export interface PlayerState {
   ready: boolean;
 }
 
-export type GameStatus = 'lobby' | 'placement' | 'playing' | 'finished';
+export type GameStatus = "lobby" | "placement" | "playing" | "finished";
 
 export interface GameState {
   id: string;
@@ -76,5 +78,5 @@ export interface ShotResult {
   sunkShipType?: ShipType;
   gameOver: boolean;
   scoreAwarded: number;
-  cellStatus: 'hit' | 'miss';
+  cellStatus: "hit" | "miss";
 }

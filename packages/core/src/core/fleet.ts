@@ -1,6 +1,8 @@
-import { FleetConfig, Ship, ShipDefinition, ShipType } from './types';
+import { FleetConfig, Ship, ShipDefinition, ShipType } from "./types";
 
-export const DEFAULT_SHIP_DEFINITIONS: Readonly<Record<ShipType, ShipDefinition>> = {
+export const DEFAULT_SHIP_DEFINITIONS: Readonly<
+  Record<ShipType, ShipDefinition>
+> = {
   Cruiser: { length: 3 },
   Destroyer: { length: 2 },
   Submarine: { length: 1 },
@@ -19,7 +21,9 @@ export function defaultFleetConfig(): FleetConfig {
 export function buildFleet(
   config: FleetConfig,
   idFactory: () => string,
-  definitions: Readonly<Record<ShipType, ShipDefinition>> = DEFAULT_SHIP_DEFINITIONS,
+  definitions: Readonly<
+    Record<ShipType, ShipDefinition>
+  > = DEFAULT_SHIP_DEFINITIONS,
 ): Ship[] {
   const ships: Ship[] = [];
   for (const type of Object.keys(config) as ShipType[]) {

@@ -1,12 +1,18 @@
-import { Clock } from '../../core/clock';
-import { ShipPlacement, forfeitGame, handleTurnTimeout, placeFleet, processShot } from '../../core/game';
-import { Rng } from '../../core/rng';
-import { GameRuleError } from '../../core/rules';
-import { GameState } from '../../core/types';
-import { GameRegistry } from '../registry';
-import { TurnTimer } from '../turn-timer';
-import { ClientMessage } from './protocol';
-import { WebSocketHub } from './hub';
+import { Clock } from "../../core/clock";
+import {
+  ShipPlacement,
+  forfeitGame,
+  handleTurnTimeout,
+  placeFleet,
+  processShot,
+} from "../../core/game";
+import { Rng } from "../../core/rng";
+import { GameRuleError } from "../../core/rules";
+import { GameState } from "../../core/types";
+import { GameRegistry } from "../registry";
+import { TurnTimer } from "../turn-timer";
+import { ClientMessage } from "./protocol";
+import { WebSocketHub } from "./hub";
 
 export interface HandlerDeps {
   registry: GameRegistry;
@@ -27,17 +33,17 @@ export function handleClientMessage(
   msg: ClientMessage,
 ): void {
   switch (msg.type) {
-    case 'PLACE_FLEET':
+    case "PLACE_FLEET":
       handlePlaceFleet(deps, ctx, msg.payload.placements);
       return;
-    case 'SHOOT':
+    case "SHOOT":
       handleShoot(deps, ctx, msg.payload.r, msg.payload.c);
       return;
-    case 'LEAVE_GAME':
+    case "LEAVE_GAME":
       handleLeaveGame(deps, ctx);
       return;
-    case 'PING':
-      deps.hub.sendTo(ctx.gameId, ctx.playerId, { type: 'PONG' });
+    case "PING":
+      deps.hub.sendTo(ctx.gameId, ctx.playerId, { type: "PONG" });
       return;
   }
 }
@@ -48,22 +54,30 @@ function handlePlaceFleet(
   placements: readonly ShipPlacement[],
 ): void {
   const next = deps.registry.update(ctx.gameId, (current) =>
-    placeFleet(current, ctx.playerId, placements, { clock: deps.clock, rng: deps.rng }),
+    placeFleet(current, ctx.playerId, placements, {
+      clock: deps.clock,
+      rng: deps.rng,
+    }),
   );
   if (!next) {
-    sendError(deps, ctx, 'GAME_NOT_FOUND', `Game ${ctx.gameId} not found.`);
+    sendError(deps, ctx, "GAME_NOT_FOUND", `Game ${ctx.gameId} not found.`);
     return;
   }
   deps.hub.broadcastState(ctx.gameId, next);
-  if (next.status === 'playing' && next.activePlayerId) {
+  if (next.status === "playing" && next.activePlayerId) {
     startTurnTimer(deps, next);
   }
 }
 
-function handleShoot(deps: HandlerDeps, ctx: HandlerContext, r: number, c: number): void {
+function handleShoot(
+  deps: HandlerDeps,
+  ctx: HandlerContext,
+  r: number,
+  c: number,
+): void {
   const current = deps.registry.get(ctx.gameId);
   if (!current) {
-    sendError(deps, ctx, 'GAME_NOT_FOUND', `Game ${ctx.gameId} not found.`);
+    sendError(deps, ctx, "GAME_NOT_FOUND", `Game ${ctx.gameId} not found.`);
     return;
   }
   let outcome: ReturnType<typeof processShot>;
@@ -76,7 +90,7 @@ function handleShoot(deps: HandlerDeps, ctx: HandlerContext, r: number, c: numbe
   deps.turnTimer.cancel(ctx.gameId);
   deps.registry.update(ctx.gameId, () => outcome.game);
   deps.hub.broadcast(ctx.gameId, () => ({
-    type: 'SHOT_RESULT',
+    type: "SHOT_RESULT",
     payload: {
       shooterId: ctx.playerId,
       r,
@@ -95,42 +109,63 @@ function handleShoot(deps: HandlerDeps, ctx: HandlerContext, r: number, c: numbe
 
 function handleLeaveGame(deps: HandlerDeps, ctx: HandlerContext): void {
   const current = deps.registry.get(ctx.gameId);
-  if (!current || current.status === 'finished' || Object.keys(current.players).length < 2) return;
+  if (
+    !current ||
+    current.status === "finished" ||
+    Object.keys(current.players).length < 2
+  )
+    return;
   deps.turnTimer.cancel(ctx.gameId);
-  const next = deps.registry.update(ctx.gameId, (g) => forfeitGame(g, ctx.playerId));
+  const next = deps.registry.update(ctx.gameId, (g) =>
+    forfeitGame(g, ctx.playerId),
+  );
   if (next) deps.hub.broadcastState(ctx.gameId, next);
 }
 
 function startTurnTimer(deps: HandlerDeps, game: GameState): void {
-  deps.turnTimer.start(game.id, game.config.turnTimerMs, () => onTurnElapsed(deps, game.id));
+  deps.turnTimer.start(game.id, game.config.turnTimerMs, () =>
+    onTurnElapsed(deps, game.id),
+  );
 }
 
 function onTurnElapsed(deps: HandlerDeps, gameId: string): void {
   const current = deps.registry.get(gameId);
-  if (!current || current.status !== 'playing' || !current.activePlayerId) return;
+  if (!current || current.status !== "playing" || !current.activePlayerId)
+    return;
   const expiredPlayerId = current.activePlayerId;
-  const next = deps.registry.update(gameId, (g) => handleTurnTimeout(g, { clock: deps.clock }));
+  const next = deps.registry.update(gameId, (g) =>
+    handleTurnTimeout(g, { clock: deps.clock }),
+  );
   if (!next) return;
   deps.hub.broadcast(gameId, () => ({
-    type: 'TURN_TIMEOUT',
+    type: "TURN_TIMEOUT",
     payload: { playerId: expiredPlayerId },
   }));
   deps.hub.broadcastState(gameId, next);
   if (next.activePlayerId) startTurnTimer(deps, next);
 }
 
-function handleShotError(deps: HandlerDeps, ctx: HandlerContext, err: unknown): void {
+function handleShotError(
+  deps: HandlerDeps,
+  ctx: HandlerContext,
+  err: unknown,
+): void {
   if (err instanceof GameRuleError) {
     sendError(deps, ctx, err.code, err.message);
     return;
   }
-  sendError(deps, ctx, 'INTERNAL', 'Failed to process shot.');
-  console.error('Shot handler error:', err);
+  sendError(deps, ctx, "INTERNAL", "Failed to process shot.");
+  console.error("Shot handler error:", err);
 }
 
-function sendError(deps: HandlerDeps, ctx: HandlerContext, code: string, message: string): void {
+function sendError(
+  deps: HandlerDeps,
+  ctx: HandlerContext,
+  code: string,
+  message: string,
+): void {
   deps.hub.sendTo(ctx.gameId, ctx.playerId, {
-    type: 'ERROR',
+    type: "ERROR",
     payload: { code, message },
   });
 }

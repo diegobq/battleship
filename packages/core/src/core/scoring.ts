@@ -1,4 +1,4 @@
-import { EliteConfig, GameMode } from './types';
+import { EliteConfig, GameMode } from "./types";
 
 export const DEFAULT_ELITE_CONFIG: EliteConfig = {
   basePoints: 10,
@@ -9,10 +9,6 @@ export const DEFAULT_ELITE_CONFIG: EliteConfig = {
   reflexMultiplier: 1.2,
   missPenalty: -2,
 };
-
-const CLASSIC_HIT_POINTS = 1;
-const RISK_HIT_POINTS = 10;
-const RISK_MISS_PENALTY = -1;
 
 export interface ShotScoreInput {
   mode: GameMode;
@@ -31,7 +27,22 @@ export interface ScoreUpdate {
   consecutiveHits: number;
 }
 
-export function resolveEliteConfig(partial?: Partial<EliteConfig>): EliteConfig {
+// Extension point: implement this interface to add a new game mode.
+export interface ScoringStrategy {
+  calculateHitScore(
+    unHitShipCells: number,
+    hiddenCells: number,
+    consecutiveHits: number,
+    timeTakenMs: number,
+  ): number;
+  calculateMissPenalty(): number;
+}
+
+// ─── Pure helpers ─────────────────────────────────────────────────────────────
+
+export function resolveEliteConfig(
+  partial?: Partial<EliteConfig>,
+): EliteConfig {
   if (!partial) return DEFAULT_ELITE_CONFIG;
   return {
     ...DEFAULT_ELITE_CONFIG,
@@ -49,10 +60,69 @@ export function getConsecutiveHitMultiplier(
   return multipliers[idx];
 }
 
-export function calculateProbabilityOfHit(unHitShipCells: number, hiddenCells: number): number {
+export function calculateProbabilityOfHit(
+  unHitShipCells: number,
+  hiddenCells: number,
+): number {
   if (hiddenCells <= 0) return 1;
   return Math.min(1, Math.max(0, unHitShipCells / hiddenCells));
 }
+
+// ─── Concrete strategies ──────────────────────────────────────────────────────
+
+const classicStrategy: ScoringStrategy = {
+  calculateHitScore: () => 1,
+  calculateMissPenalty: () => 0,
+};
+
+const riskStrategy: ScoringStrategy = {
+  calculateHitScore: () => 10,
+  calculateMissPenalty: () => -1,
+};
+
+class EliteStrategy implements ScoringStrategy {
+  constructor(private readonly cfg: EliteConfig) {}
+
+  calculateHitScore(
+    unHitShipCells: number,
+    hiddenCells: number,
+    consecutiveHits: number,
+    timeTakenMs: number,
+  ): number {
+    const p = calculateProbabilityOfHit(unHitShipCells, hiddenCells);
+    const accuracyBonus =
+      p > 0 ? Math.round(this.cfg.accuracyBonusMax * (1 - p)) : 0;
+    let score = this.cfg.basePoints + accuracyBonus;
+    score *= getConsecutiveHitMultiplier(consecutiveHits, this.cfg.multipliers);
+    if (timeTakenMs <= this.cfg.reflexWindowMs)
+      score *= this.cfg.reflexMultiplier;
+    return Math.round(score);
+  }
+
+  calculateMissPenalty(): number {
+    return this.cfg.missPenalty;
+  }
+}
+
+// ─── Factory ──────────────────────────────────────────────────────────────────
+// Adding a new mode: add to GameMode union, create a strategy, add a case here.
+// TypeScript exhaustiveness checking will fail the build if any mode is unhandled.
+
+function resolveScoringStrategy(
+  mode: GameMode,
+  eliteConfig?: Partial<EliteConfig>,
+): ScoringStrategy {
+  switch (mode) {
+    case "Classic":
+      return classicStrategy;
+    case "Risk":
+      return riskStrategy;
+    case "Elite":
+      return new EliteStrategy(resolveEliteConfig(eliteConfig));
+  }
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 export function calculateHitScore(
   mode: GameMode,
@@ -62,55 +132,34 @@ export function calculateHitScore(
   timeTakenMs: number,
   eliteConfig?: Partial<EliteConfig>,
 ): number {
-  if (mode === 'Classic') return CLASSIC_HIT_POINTS;
-  if (mode === 'Risk') return RISK_HIT_POINTS;
-  return calculateEliteHitScore(
+  return resolveScoringStrategy(mode, eliteConfig).calculateHitScore(
     unHitShipCells,
     hiddenCells,
     consecutiveHits,
     timeTakenMs,
-    resolveEliteConfig(eliteConfig),
   );
 }
 
-function calculateEliteHitScore(
-  unHitShipCells: number,
-  hiddenCells: number,
-  consecutiveHits: number,
-  timeTakenMs: number,
-  cfg: EliteConfig,
+export function calculateMissPenalty(
+  mode: GameMode,
+  eliteConfig?: Partial<EliteConfig>,
 ): number {
-  const p = calculateProbabilityOfHit(unHitShipCells, hiddenCells);
-  const accuracyBonus = p > 0 ? Math.round(cfg.accuracyBonusMax * (1 - p)) : 0;
-  let score = cfg.basePoints + accuracyBonus;
-  score *= getConsecutiveHitMultiplier(consecutiveHits, cfg.multipliers);
-  if (timeTakenMs <= cfg.reflexWindowMs) {
-    score *= cfg.reflexMultiplier;
-  }
-  return Math.round(score);
-}
-
-export function calculateMissPenalty(mode: GameMode, eliteConfig?: Partial<EliteConfig>): number {
-  if (mode === 'Classic') return 0;
-  if (mode === 'Risk') return RISK_MISS_PENALTY;
-  return resolveEliteConfig(eliteConfig).missPenalty;
+  return resolveScoringStrategy(mode, eliteConfig).calculateMissPenalty();
 }
 
 export function awardScore(input: ShotScoreInput): ScoreUpdate {
+  const strategy = resolveScoringStrategy(input.mode, input.eliteConfig);
   if (input.hit) {
     const consecutiveHits = input.previousConsecutiveHits + 1;
-    const scoreAwarded = calculateHitScore(
-      input.mode,
-      input.unHitShipCells,
-      input.hiddenCells,
+    return {
+      scoreAwarded: strategy.calculateHitScore(
+        input.unHitShipCells,
+        input.hiddenCells,
+        consecutiveHits,
+        input.timeTakenMs,
+      ),
       consecutiveHits,
-      input.timeTakenMs,
-      input.eliteConfig,
-    );
-    return { scoreAwarded, consecutiveHits };
+    };
   }
-  return {
-    scoreAwarded: calculateMissPenalty(input.mode, input.eliteConfig),
-    consecutiveHits: 0,
-  };
+  return { scoreAwarded: strategy.calculateMissPenalty(), consecutiveHits: 0 };
 }

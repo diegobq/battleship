@@ -54,6 +54,12 @@
   cursor: not-allowed;
 }
 
+.cell.pending {
+  background: rgba(247, 201, 72, 0.2);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1rem;
+}
+
 @keyframes hitPulse {
   0% {
     transform: scale(0.5);

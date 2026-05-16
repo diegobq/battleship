@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { ApiError } from '@battleship/core';
+import { NextResponse } from "next/server";
+import { ApiError } from "@battleship/core";
 
 export { ApiError };
 
@@ -12,9 +12,9 @@ export function apiErrorResponse(err: ApiError): NextResponse {
 
 export function handleApiError(err: unknown): NextResponse {
   if (err instanceof ApiError) return apiErrorResponse(err);
-  console.error('Unhandled API error:', err);
+  console.error("Unhandled API error:", err);
   return NextResponse.json(
-    { error: { code: 'INTERNAL', message: 'Internal server error.' } },
+    { error: { code: "INTERNAL", message: "Internal server error." } },
     { status: 500 },
   );
 }

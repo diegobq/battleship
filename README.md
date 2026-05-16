@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Battleship — ASSE Technical Assessment
 
-## Getting Started
+Real-time Player vs. Player Battleship game built with Next.js App Router, React 19, TypeScript, Tailwind CSS v4, and a custom WebSocket server.
 
-First, run the development server:
+---
+
+## Prerequisites
+
+- **Node.js** ≥ 20 (see `.nvmrc`)
+- **pnpm** ≥ 9
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+nvm use          # switch to the project's Node version
+npm install -g pnpm@latest  # if pnpm is not already installed
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm install
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Run
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Development
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm dev
+```
 
-## Deploy on Vercel
+Opens at [http://localhost:3000](http://localhost:3000). The dev server wraps Next.js with a custom Node HTTP + WebSocket server (`server.ts`) so hot-module reload and the WebSocket upgrade path coexist.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Production
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm build    # compile Next.js output
+pnpm start    # serve the production build
+```
+
+---
+
+## Test
+
+```bash
+pnpm test               # run all Vitest unit tests
+pnpm test --coverage    # run tests with V8 coverage report
+```
+
+## Lint
+
+```bash
+pnpm lint
+```
+
+---
+
+## Solutions
+
+| Exercise | Topic                                                 | Document                       |
+| -------- | ----------------------------------------------------- | ------------------------------ |
+| 1        | Core game — matchmaking, board, turns, scoring, modes | [SOLUTION-1.md](SOLUTION-1.md) |
+| 2        | Test suite — strategy, coverage, and rationale        | [SOLUTION-2.md](SOLUTION-2.md) |
+| 3        | Design — concurrency and disconnection handling       | [SOLUTION-3.md](SOLUTION-3.md) |
+| 4        | Design — Spectator Mode (live + replay)               | [SOLUTION-4.md](SOLUTION-4.md) |
+
+---
+
+## Production Readiness
+
+A catalogue of gaps outside the assessment scope (i18n, observability, security headers, CI/CD, etc.) with priorities and recommended approaches: [PRODUCTION-CHECKLIST.md](PRODUCTION-CHECKLIST.md).
