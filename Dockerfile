@@ -37,6 +37,9 @@ RUN rm -rf apps/web/.next
 # Build application using pnpm workspace filter
 RUN pnpm --filter @battleship/web build
 
+# Compile server TypeScript to JavaScript for production
+RUN pnpm exec tsc --project tsconfig.server.json
+
 # Remove development dependencies
 RUN pnpm prune --prod
 
@@ -52,4 +55,4 @@ ENTRYPOINT [ "/app/docker-entrypoint.js" ]
 
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
-CMD [ "node_modules/.bin/tsx", "apps/web/server.ts" ]
+CMD [ "node", "dist/server.js" ]
