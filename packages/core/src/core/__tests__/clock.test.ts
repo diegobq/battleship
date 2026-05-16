@@ -1,5 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { makeFakeClock } from "../clock";
+import { makeFakeClock, makeSystemClock } from "../clock";
+
+describe("makeSystemClock", () => {
+  it("returns a value close to Date.now()", () => {
+    const clock = makeSystemClock();
+    const before = Date.now();
+    const t = clock.now();
+    const after = Date.now();
+    expect(t).toBeGreaterThanOrEqual(before);
+    expect(t).toBeLessThanOrEqual(after);
+  });
+});
 
 describe("makeFakeClock", () => {
   it("starts at zero by default", () => {

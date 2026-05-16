@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { getRegistry, __resetRegistryForTests } from "../registry";
+import { getRegistry, __resetRegistryForTests, isRegistryInitialized } from "../registry";
 import { makeFakeClock } from "../../core/clock";
 import { createGame, createPlayer } from "../../core/game";
 import type { GameState } from "../../core/types";
@@ -76,5 +76,12 @@ describe("GameRegistry (InMemory)", () => {
     reg.create(makeGame("g1"));
     __resetRegistryForTests();
     expect(getRegistry().get("g1")).toBeUndefined();
+  });
+
+  it("isRegistryInitialized returns true after getRegistry() and false after reset", () => {
+    getRegistry();
+    expect(isRegistryInitialized()).toBe(true);
+    __resetRegistryForTests();
+    expect(isRegistryInitialized()).toBe(false);
   });
 });

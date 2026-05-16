@@ -8,6 +8,7 @@ import {
   resolveTurnStrategy,
   alternatingTurnStrategy,
   hitKeepsTurnStrategy,
+  isGameOver,
 } from "../rules";
 import { makeSeededRng } from "../rng";
 import { createEmptyGrid } from "../board";
@@ -206,5 +207,17 @@ describe("hitKeepsTurnStrategy", () => {
   it("returns the opponent on a miss", () => {
     const game = makeGame();
     expect(hitKeepsTurnStrategy.nextPlayer(game, "host", false)).toBe("guest");
+  });
+});
+
+describe("isGameOver", () => {
+  it("returns false when a ship still has hits remaining", () => {
+    const ship: import("../types").Ship = { id: "s", type: "Submarine", length: 1, hits: 0, positions: [], placed: true };
+    expect(isGameOver([ship])).toBe(false);
+  });
+
+  it("returns true when all ships are fully hit", () => {
+    const ship: import("../types").Ship = { id: "s", type: "Submarine", length: 1, hits: 1, positions: [], placed: true };
+    expect(isGameOver([ship])).toBe(true);
   });
 });

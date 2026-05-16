@@ -28,6 +28,33 @@ function lastMsg(sock: { sends: string[] }): unknown {
   return JSON.parse(sock.sends[sock.sends.length - 1]);
 }
 
+/** Builds a placement-status game (both players added, no fleets placed yet). */
+function buildPlacementScenario() {
+  const clock = makeFakeClock(1000);
+  const rng = makeSeededRng(42);
+  const config = { mode: "Classic" as const, fleet: { Submarine: 1 }, turnTimerMs: 1_000 };
+
+  const host = createPlayer("host", "Host");
+  const guest = createPlayer("guest", "Guest");
+
+  const lobby = createGame({ id: "g1", config, host, clock });
+  const placement = addSecondPlayer(lobby, guest, { idFactory: nextId });
+
+  const reg = getRegistry();
+  reg.create(placement);
+
+  const hub = new WebSocketHub();
+  const hostSock = makeSock();
+  const guestSock = makeSock();
+  hub.register("g1", "host", hostSock);
+  hub.register("g1", "guest", guestSock);
+
+  const turnTimer = new TurnTimer();
+  const deps: HandlerDeps = { registry: reg, hub, turnTimer, clock, rng };
+
+  return { deps, placement, hostSock, guestSock };
+}
+
 /** Builds a playing game with one Submarine each, stores it in the registry,
  *  and returns deps + contexts wired up with mock sockets. */
 function buildPlayingScenario() {
@@ -175,6 +202,51 @@ describe("handleClientMessage", () => {
       { type: "PLACE_FLEET", payload: { placements: [] } },
     );
     expect((lastMsg(sock) as any).type).toBe("ERROR");
+  });
+
+  // ── PLACE_FLEET success ──────────────────────────────────────────────────────
+
+  it("PLACE_FLEET — successful placement broadcasts game state", () => {
+    const { deps, placement, hostSock, guestSock } = buildPlacementScenario();
+    const hostShipId = placement.players["host"].ships[0].id;
+    const guestShipId = placement.players["guest"].ships[0].id;
+    handleClientMessage(
+      deps,
+      { gameId: "g1", playerId: "host" },
+      { type: "PLACE_FLEET", payload: { placements: [{ shipId: hostShipId, r: 0, c: 0, orientation: "horizontal" }] } },
+    );
+    // Both players receive the state broadcast after host places fleet
+    expect(lastMsg(hostSock)).toBeDefined();
+    // Guest places fleet → transitions to playing → starts turn timer
+    handleClientMessage(
+      deps,
+      { gameId: "g1", playerId: "guest" },
+      { type: "PLACE_FLEET", payload: { placements: [{ shipId: guestShipId, r: 7, c: 7, orientation: "horizontal" }] } },
+    );
+    const stateMsg = JSON.parse(guestSock.sends[guestSock.sends.length - 1]) as any;
+    expect(stateMsg.type).toBe("GAME_STATE_UPDATE");
+    expect(stateMsg.payload.state.status).toBe("playing");
+    expect(deps.turnTimer.has("g1")).toBe(true);
+  });
+
+  // ── SHOOT — internal error ───────────────────────────────────────────────────
+
+  it("SHOOT — INTERNAL error sends ERROR when processShot throws unexpectedly", () => {
+    const { deps, activeCtx, hostSock, guestSock, activeId } = buildPlayingScenario();
+    const activeSock = activeId === "host" ? hostSock : guestSock;
+    // Corrupt the game state so processShot throws a non-GameRuleError TypeError
+    const corrupt = { ...deps.registry.get("g1")! };
+    (corrupt as any).players = null;
+    const realGet = deps.registry.get.bind(deps.registry);
+    let callCount = 0;
+    deps.registry.get = (id) => {
+      callCount++;
+      return callCount === 1 ? corrupt : realGet(id);
+    };
+    handleClientMessage(deps, activeCtx, { type: "SHOOT", payload: { r: 0, c: 0 } });
+    const err = lastMsg(activeSock) as any;
+    expect(err.type).toBe("ERROR");
+    expect(err.payload.code).toBe("INTERNAL");
   });
 
   // ── Turn timer elapse ────────────────────────────────────────────────────────

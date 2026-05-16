@@ -1,5 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { makeSeededRng } from "../rng";
+import { makeSeededRng, makeSystemRng } from "../rng";
+
+describe("makeSystemRng", () => {
+  it("produces values in [0, 1)", () => {
+    const rng = makeSystemRng();
+    for (let i = 0; i < 20; i++) {
+      const v = rng.next();
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
+    }
+  });
+});
 
 describe("makeSeededRng", () => {
   it("produces values in [0, 1)", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { WebSocketHub, getHub, __resetHubForTests } from "../ws/hub";
+import { WebSocketHub, getHub, __resetHubForTests, isHubInitialized } from "../ws/hub";
 import type { HubSocket } from "../ws/hub";
 import type { GameState } from "../../core/types";
 import { createGame, createPlayer } from "../../core/game";
@@ -127,5 +127,12 @@ describe("getHub singleton", () => {
     const first = getHub();
     __resetHubForTests();
     expect(getHub()).not.toBe(first);
+  });
+
+  it("isHubInitialized returns true after getHub() and false after reset", () => {
+    getHub();
+    expect(isHubInitialized()).toBe(true);
+    __resetHubForTests();
+    expect(isHubInitialized()).toBe(false);
   });
 });

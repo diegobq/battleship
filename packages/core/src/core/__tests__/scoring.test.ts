@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   awardScore,
+  calculateHitScore,
+  calculateMissPenalty,
   calculateProbabilityOfHit,
   getConsecutiveHitMultiplier,
   resolveEliteConfig,
@@ -182,5 +184,25 @@ describe("resolveEliteConfig", () => {
     const cfg = resolveEliteConfig({ basePoints: 20 });
     expect(cfg.basePoints).toBe(20);
     expect(cfg.reflexWindowMs).toBe(DEFAULT_ELITE_CONFIG.reflexWindowMs);
+  });
+});
+
+describe("calculateHitScore", () => {
+  it("delegates to the correct strategy for Classic mode", () => {
+    expect(calculateHitScore("Classic", 5, 40, 0, 1000)).toBe(1);
+  });
+
+  it("delegates to the correct strategy for Risk mode", () => {
+    expect(calculateHitScore("Risk", 5, 40, 0, 1000)).toBe(10);
+  });
+});
+
+describe("calculateMissPenalty", () => {
+  it("returns 0 for Classic mode", () => {
+    expect(calculateMissPenalty("Classic")).toBe(0);
+  });
+
+  it("returns -1 for Risk mode", () => {
+    expect(calculateMissPenalty("Risk")).toBe(-1);
   });
 });
