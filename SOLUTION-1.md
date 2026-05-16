@@ -296,6 +296,14 @@ SSE is the right tool here because:
 - `EventSource` reconnects automatically without application code.
 - SSE is HTTP-native: works through any HTTP/2 proxy, multiplexed on a single connection, and does not require the Node upgrade path that WebSocket needs.
 
+### Lobby game cap
+
+The `POST /api/game/create` route enforces a hard limit of **5 open lobbies** at once. If `registry.listJoinable().length >= 5` when a create request arrives, the server returns `409 LOBBY_FULL` before any state is mutated, and the form surfaces the error message directly to the user.
+
+The cap is placed in the API route — not in `GameRegistry.create()` — because it is a request-handling policy, not a persistence invariant. The registry's only creation guard is uniqueness (duplicate game ID); lobby count is a UX and resource-management concern that belongs at the HTTP boundary. Keeping these responsibilities separate means the registry remains a pure data store that can be tested and swapped independently.
+
+A limit was chosen as a practical upper bound that keeps the lobby scrollable on a single screen without pagination, while still comfortably accommodating simultaneous use by a small group. The constant `MAX_OPEN_LOBBIES` is defined in one place in the route file; changing it requires no other code changes.
+
 ### Why SSE was NOT extended to other waiting flows
 
 Two other flows superficially look like SSE candidates but were deliberately left on WebSocket:
