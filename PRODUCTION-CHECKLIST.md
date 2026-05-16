@@ -2,6 +2,8 @@
 
 > **Scope.** This document enumerates concerns that are **outside** the four assessment exercises but would be required (or strongly recommended) before launching the Battleship game publicly. It is a discussion artifact, not implementation work — items are documented to make awareness explicit.
 >
+> For a quick at-a-glance index of MVP omissions, see [MVP-SCOPE.md](./MVP-SCOPE.md).
+>
 > File references point at `apps/web/` and `packages/core/` (the current monorepo layout).
 
 ## Legend
@@ -16,7 +18,6 @@
 - [Reliability](#reliability)
 - [Security](#security)
 - [Frontend UX](#frontend-ux)
-- [Internationalisation](#internationalisation)
 - [SEO & Discoverability](#seo--discoverability)
 - [PWA & Mobile](#pwa--mobile)
 - [Analytics & Consent](#analytics--consent)
@@ -94,59 +95,12 @@
 
 ## Frontend UX
 
-- **Toast / notification system** — **P1**
-  - Gap: WS `ERROR` messages from the server are not surfaced to the user (`apps/web/lib/ui/GameProvider.tsx`).
-  - Impact: server-side validation failures look like client bugs.
-  - Approach: lightweight toast hook (`useToast`) rendering an `aria-live="assertive"` region; subscribe to the `ERROR` and `WsConnectionState` events.
-
-- **Screen-reader announcements for shot results** — **P1**
-  - Gap: `Board` cells have static ARIA labels, but no live region announces "Hit at A5" or "You sunk the destroyer".
-  - Impact: blind / low-vision players cannot follow the game.
-  - Approach: an `aria-live="polite"` log region inside `Hud/*` that appends a sentence per `SHOT_RESULT` message.
-
-- **Theme switcher UI + persisted preference** — **P1**
-  - Gap: `[data-theme="christmas"]` works via CSS only; there is no UI to flip it, and no `localStorage` round-trip.
-  - Impact: marketing's seasonal skin requires DevTools to enable. The headline "easy theming" claim from CLAUDE.md is not user-facing.
-  - Approach: small `<select>` in the lobby header that writes `data-theme` to `<html>` and persists to `localStorage`; rehydrate in `app/layout.tsx` via an inline pre-hydration script.
+> See [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md) for the design system (tokens, primitives, hooks) that covers this section. See `SOLUTION-1.md` for implementation rationale per item.
 
 - **Sound cues** — **P2**
-  - Gap: no audio feedback for hits / misses / sunk / turn start.
-  - Impact: weaker game feel, especially on mobile where visual feedback is small.
-  - Approach: a few short OGG samples played via `HTMLAudioElement`; user-toggleable preference; respect `prefers-reduced-motion`.
-
-- **Haptics on mobile** — **P2**
-  - Gap: `navigator.vibrate` is never invoked.
-  - Impact: missed opportunity for tactile feedback on shots.
-  - Approach: `navigator.vibrate?.(50)` on hit, `(20, 40, 20)` on sunk. Gate behind the same audio preference.
-
-- **Safe-area insets (iOS notch)** — **P2**
-  - Gap: `app/globals.css` has no `env(safe-area-inset-*)` handling.
-  - Impact: HUD overlaps the iPhone notch / home indicator in landscape.
-  - Approach: extend the Tailwind v4 `@theme` block with safe-area utility classes; apply to the top HUD and bottom action bar.
-
-- **Optimistic shot feedback** — **P2**
-  - Gap: the UI waits for the server's `SHOT_RESULT` before showing the marker.
-  - Impact: a ~50 ms perceived delay per shot.
-  - Approach: render a pending "?" marker immediately; reconcile on `SHOT_RESULT`. Mind ordering against server authority — only the marker is optimistic, score never is.
-
----
-
-## Internationalisation
-
-- **i18n framework** — **P1**
-  - Gap: every string is hardcoded English across `apps/web/app/_components/**`.
-  - Impact: cannot ship to any non-English market; OEO is multi-locale by default.
-  - Approach: `next-intl` (App-Router-native). Extract strings into `messages/en.json`; locale-prefix routes (`/en/`, `/es/`, …); switch by `Accept-Language` on first visit.
-
-- **Pluralisation & number formats** — **P1**
-  - Gap: score rendering uses raw numbers; "1 hit" vs "2 hits" is hardcoded.
-  - Impact: grammatical bugs in Slavic / Arabic locales.
-  - Approach: ICU message format via `next-intl`; CLDR plural categories.
-
-- **RTL support** — **P2**
-  - Gap: layout is LTR-only.
-  - Impact: blocks Arabic / Hebrew launch.
-  - Approach: switch Tailwind to logical properties (`ms-*`, `pe-*`, etc.); set `dir="rtl"` on `<html>` for RTL locales.
+  - Gap: `useShotFeedback` plays OGG audio via `HTMLAudioElement` and the hook is wired into `PlayView`, but the audio asset files (`public/sounds/hit.ogg`, `miss.ogg`, `sunk.ogg`) have not been added and there is no UI toggle for the `bs-sfx` preference key.
+  - Impact: the hook silently no-ops on every shot; the feature is invisible to users until assets ship.
+  - Approach: add three short OGG samples under `apps/web/public/sounds/`; add a mute toggle (e.g. a speaker icon button in the HUD) that writes `localStorage["bs-sfx"] = "off"`.
 
 ---
 
@@ -358,5 +312,5 @@
 ## Summary by priority
 
 - **P0 (must-have before public launch):** structured logging, error tracking, graceful shutdown, signed sessions, rate limiting, security headers, dependency audit in CI, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
-- **P1 (polished v1):** CSRF, input normalisation, toast system, screen-reader announcements, theme switcher UI, i18n + plurals, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, Prettier + Husky, semver, ToS, accessibility tests, WS load tests, runbook.
-- **P2 (future):** idempotent retries, sound + haptics, safe-area insets, optimistic UI, RTL, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, commitlint, CHANGELOG, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
+- **P1 (polished v1):** CSRF, input normalisation, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, Prettier + Husky, semver, ToS, accessibility tests, WS load tests, runbook.
+- **P2 (future):** idempotent retries, sound cues (assets + toggle UI), service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, commitlint, CHANGELOG, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.

@@ -1,15 +1,30 @@
 "use client";
+import { useEffect } from "react";
 import Link from "next/link";
 import { PlayerState } from "@battleship/core";
 import { useGame } from "@/lib/ui/GameProvider";
+import { useShotAnnouncement } from "@/lib/ui/useShotAnnouncement";
+import { useShotFeedback } from "@/lib/ui/useShotFeedback";
+import { useOptimisticShots } from "@/lib/ui/useOptimisticShots";
 import Board from "../Board/Board";
 import ShotToast from "../Effects/ShotToast";
 import MultiplierBadge from "../Hud/MultiplierBadge";
 import ScorePanel from "../Hud/ScorePanel";
 import TurnTimer from "../Hud/TurnTimer";
+import { LiveRegion } from "../ui/LiveRegion";
 
 export default function PlayView() {
   const { state, playerId, lastShot, shoot, leaveGame } = useGame();
+  const sentences = useShotAnnouncement(lastShot, playerId);
+  const { onShot } = useShotFeedback();
+  const { pending, addPending, reconcile } = useOptimisticShots();
+
+  useEffect(() => {
+    if (!lastShot) return;
+    onShot({ hit: lastShot.hit, sunk: !!lastShot.sunkShipType });
+    reconcile(lastShot.r, lastShot.c);
+  }, [lastShot, onShot, reconcile]);
+
   if (!state) return <p className="p-4">Loading…</p>;
   const me = state.players[playerId];
   const opponentId = Object.keys(state.players).find((id) => id !== playerId);
@@ -18,8 +33,14 @@ export default function PlayView() {
   const finished = state.status === "finished";
   const iWon = finished && state.winnerId === playerId;
 
+  function handleShoot(r: number, c: number) {
+    addPending(r, c);
+    return shoot(r, c);
+  }
+
   return (
     <main className="flex-1 mx-auto w-full max-w-4xl px-4 py-4 flex flex-col gap-4">
+      <LiveRegion sentences={sentences} />
       <ShotToast event={lastShot} selfId={playerId} />
       <ScorePanel state={state} selfId={playerId} />
       <div className="flex gap-2 items-center">
@@ -51,7 +72,8 @@ export default function PlayView() {
         opponent={opponent}
         isMyTurn={isMyTurn}
         finished={finished}
-        onShoot={shoot}
+        pendingCells={pending}
+        onShoot={handleShoot}
       />
     </main>
   );
@@ -84,12 +106,14 @@ function BoardsSection({
   opponent,
   isMyTurn,
   finished,
+  pendingCells,
   onShoot,
 }: {
   me: PlayerState;
   opponent: PlayerState | null;
   isMyTurn: boolean;
   finished: boolean;
+  pendingCells: Set<string>;
   onShoot: (r: number, c: number) => boolean;
 }) {
   return (
@@ -107,6 +131,7 @@ function BoardsSection({
             grid={opponent.grid}
             showShips={finished}
             disabled={!isMyTurn || finished}
+            pendingCells={pendingCells}
             onCellClick={(r, c) => onShoot(r, c)}
           />
         )}

@@ -21,6 +21,12 @@ This document records the design rationale behind the Battleship implementation 
 - [Simplicity & Readability](#simplicity--readability)
 - [UI Type Centralisation](#ui-type-centralisation)
 - [Mobile-first UX](#mobile-first-ux)
+- [Toast System](#toast-system)
+- [Screen-Reader Announcements](#screen-reader-announcements)
+- [Theme Switcher](#theme-switcher)
+- [Safe-Area Insets](#safe-area-insets)
+- [Haptic Feedback](#haptic-feedback)
+- [Optimistic Shot Feedback](#optimistic-shot-feedback)
 - [Test Strategy](#test-strategy)
 - [Error Boundaries](#error-boundaries)
 - [Health & Readiness Probes](#health--readiness-probes-p0)
@@ -396,6 +402,8 @@ Future migration path: when scaling out, the WebSocket fan-out moves to a sideca
 
 ## CSS Scoping & Theming
 
+> The full design system — token groups, primitives, hooks, and coverage map — is documented in [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md).
+
 Combined approach:
 
 1. **Tailwind v4** — utility classes for layout, spacing, responsive breakpoints (mobile-first). No new global class names are generated.
@@ -449,6 +457,42 @@ Shared UI types (`PlacementState`, `PlacementAction`, `GameContextValue`, `ShotE
 ## Mobile-first UX
 
 Tailwind responsive utilities default to mobile sizing; `min-width: sm` (640 px) breakpoints scale up. Placement uses **Pointer Events on a click-to-place model** rather than HTML5 drag-and-drop — HTML5 DnD is unreliable on iOS Safari, while Pointer Events behave identically across touch, mouse, and pen.
+
+---
+
+## Toast System
+
+Module-scoped subscribable store with imperative API (`toast.error`, `toast.info`). The server snapshot passed to `useSyncExternalStore` must be a stable module-level constant — an inline `() => []` triggers React's infinite-loop warning. See [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md) for full layer rationale.
+
+---
+
+## Screen-Reader Announcements
+
+`useReducer` + `dispatch` instead of `useState` + `setState` is required by React Compiler's `set-state-in-effect` rule. `formatShot` is a pure function so it can be unit-tested in isolation from the hook. See [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md).
+
+---
+
+## Theme Switcher
+
+`sessionStorage` (not `localStorage`) gives per-tab isolation — two tabs can run different skins without bleeding into each other. Pre-hydration script + `suppressHydrationWarning` eliminates theme flash before React mounts. See [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md).
+
+---
+
+## Safe-Area Insets
+
+`export const viewport` (Next.js typed API) sets `viewport-fit=cover` — required for `env(safe-area-inset-*)` to return non-zero values on iOS. See [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md).
+
+---
+
+## Haptic Feedback
+
+Optional chaining on `navigator.vibrate?.()` silently no-ops on unsupported browsers. Haptics and audio share the same `localStorage["bs-sfx"]` preference key so one toggle controls both. See [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md).
+
+---
+
+## Optimistic Shot Feedback
+
+`Set<"r,c">` pending cells render a faint `?` marker immediately on click. Score is never optimistic — only the visual marker is speculative; the server remains sole authority on hit/miss/sunk. See [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md).
 
 ---
 

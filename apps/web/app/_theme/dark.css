@@ -1,0 +1,25 @@
+/* Activate by setting <html data-theme="dark"> */
+
+[data-theme="dark"] {
+  --surface-bg: #0f0f0f;
+  --surface-fg: #f0f0f0;
+  --surface-muted: #1a1a1a;
+  --surface-elevated: #242424;
+
+  --brand-primary: #7c6af7;
+  --brand-secondary: #f5a623;
+  --brand-danger: #ff5555;
+  --brand-success: #50fa7b;
+
+  --board-grid-line: #333333;
+  --board-cell-empty: #1a1a1a;
+  --board-cell-ship: #7c6af7;
+  --board-cell-hit: #ff5555;
+  --board-cell-miss: #555555;
+  --board-cell-sunk: #4a1a1a;
+
+  --hud-bg: #1a1a1a;
+  --hud-score: #f5a623;
+  --hud-multiplier: #50fa7b;
+  --hud-timer: #7c6af7;
+}
