@@ -11,7 +11,12 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["lib/**/*.{ts,tsx}"],
-      exclude: ["lib/**/__tests__/**", "lib/**/*.d.ts"],
+      exclude: [
+        "lib/**/__tests__/**",
+        "lib/**/*.d.ts",
+        "lib/ui/index.ts",
+        "lib/ui/types.ts",
+      ],
       thresholds: {
         lines: 80,
         functions: 80,
