@@ -167,4 +167,3 @@ Tracks a `Set<"r,c">` of cells shot but not yet confirmed by the server. The Boa
 renders a faint `?` marker for pending cells immediately on click. `reconcile` clears
 the cell when `SHOT_RESULT` arrives. Score is never optimistic — only the visual
 marker. Both `addPending` and `reconcile` are `useCallback`-memoised.
-
