@@ -6,11 +6,6 @@ const { spawn } = require("node:child_process");
 const env = { ...process.env };
 
 (async () => {
-  // If running the web server then prerender pages
-  if (process.argv.slice(-2).join(" ") === "node dist/apps/web/server.js") {
-    await exec("npx next build --experimental-build-mode generate");
-  }
-
   // launch application
   await exec(process.argv.slice(2).join(" "));
 })();
