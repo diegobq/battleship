@@ -2,9 +2,8 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": false,
-    "baseUrl": ".",
     "module": "commonjs",
-    "moduleResolution": "node",
+    "moduleResolution": "node10",
     "outDir": "dist",
     "target": "ES2022",
     "paths": {
