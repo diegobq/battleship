@@ -7,7 +7,7 @@ export default defineConfig({
   resolve: { alias: { "@": rootDir } },
   test: {
     environment: "node",
-    environmentMatchGlobs: [["lib/ui/__tests__/**", "jsdom"]],
+    environmentMatchGlobs: [["lib/ui/__tests__/**", "happy-dom"]],
     coverage: {
       provider: "v8",
       include: ["lib/**/*.{ts,tsx}"],
