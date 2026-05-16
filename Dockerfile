@@ -11,6 +11,7 @@ WORKDIR /app
 
 # Set production environment
 ENV NODE_ENV="production"
+ENV CI="true"
 
 # Install pnpm
 ARG PNPM_VERSION=11.1.0
@@ -24,12 +25,12 @@ FROM base AS build
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
 
-# Install node modules
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile --prod=false
-
-# Copy application code
+# Copy entire source and install dependencies
 COPY . .
+
+# Remove any existing node_modules and reinstall
+RUN rm -rf node_modules apps/web/node_modules packages/core/node_modules && \
+    pnpm install --prod=false
 
 # Clean Next.js cache to avoid stale build issues
 RUN rm -rf apps/web/.next
@@ -37,22 +38,16 @@ RUN rm -rf apps/web/.next
 # Build application using pnpm workspace filter
 RUN pnpm --filter @battleship/web build
 
-# Compile server TypeScript to JavaScript for production
-RUN pnpm exec tsc --project tsconfig.server.json
-
-# Remove development dependencies
-RUN pnpm prune --prod
-
 
 # Final stage for app image
 FROM base
 
 # Copy built application
-COPY --from=build /app /app
+COPY --from=build /app/ /app/
 
 # Entrypoint sets up the container.
 ENTRYPOINT [ "/app/docker-entrypoint.js" ]
 
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
-CMD [ "node", "dist/server.js" ]
+CMD [ "pnpm", "--filter", "@battleship/web", "start" ]
