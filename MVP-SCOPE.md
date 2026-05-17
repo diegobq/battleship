@@ -62,13 +62,15 @@
 
 ## Infrastructure & Scaling
 
-| Topic                  | MVP state                                                                                                                                       | Detail                                                                         |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| **Horizontal scaling** | Single-instance only. WebSocket hub is in-memory; no Redis pub-sub for multi-node fan-out.                                                      | [SOLUTION-3.md](./SOLUTION-3.md)                                               |
-| **Graceful shutdown**  | No `SIGTERM` handler. Active WS connections drop on every deploy.                                                                               | [PRODUCTION-CHECKLIST.md § Reliability](./PRODUCTION-CHECKLIST.md#reliability) |
-| **CI/CD pipeline**     | No `.github/workflows/`. Nothing gates a broken `main`.                                                                                         | —                                                                              |
-| **Dependency audit**   | `pnpm audit` is not run. Belongs in the CI pipeline as a `pnpm audit --prod --audit-level high` step — no standalone application code required. | —                                                                              |
-| **Release automation** | No tagging, no release notes. Rollbacks rely on git SHA recall.                                                                                 | —                                                                              |
+| Topic                  | MVP state                                                                                                                                                                                   | Detail                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Horizontal scaling** | Single-instance only. WebSocket hub is in-memory; no Redis pub-sub for multi-node fan-out.                                                                                                  | [SOLUTION-3.md](./SOLUTION-3.md)                                               |
+| **Graceful shutdown**  | No `SIGTERM` handler. Active WS connections drop on every deploy.                                                                                                                           | [PRODUCTION-CHECKLIST.md § Reliability](./PRODUCTION-CHECKLIST.md#reliability) |
+| **CI/CD pipeline**     | No `.github/workflows/`. Nothing gates a broken `main`.                                                                                                                                     | —                                                                              |
+| **Dependency audit**   | `pnpm audit` is not run. Belongs in the CI pipeline as a `pnpm audit --prod --audit-level high` step — no standalone application code required.                                             | —                                                                              |
+| **Release automation** | No tagging, no release notes. Rollbacks rely on git SHA recall.                                                                                                                             | —                                                                              |
+| **Feature flags**      | Theme and experiments are hardcoded. No LaunchDarkly / Unleash / Redis-backed flag service.                                                                                                 | —                                                                              |
+| **Per-mode config**    | `EliteConfig` is hardcoded in `packages/core/src/core/scoring.ts`. Balance tweaks require a deploy. The `Partial<EliteConfig>` override seam is ready for a remote JSON loader when needed. | —                                                                              |
 
 ---
 

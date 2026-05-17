@@ -15,10 +15,8 @@
 ## Table of contents
 
 - [Reliability](#reliability)
-- [PWA & Mobile](#pwa--mobile)
 - [Performance](#performance)
 - [Testing Maturity](#testing-maturity)
-- [Configuration](#configuration)
 - [Documentation](#documentation)
 
 ---
@@ -34,20 +32,6 @@
   - Gap: `POST /api/game/create` and `/join` are not idempotent; a double-click could create two games.
   - Impact: lobby noise; orphan games.
   - Approach: accept an `Idempotency-Key` header; cache the response for 5 min.
-
----
-
-## PWA & Mobile
-
-- **Service worker / offline shell** — **P2**
-  - Gap: no SW.
-  - Impact: cold start on flaky mobile networks; no offline lobby caching.
-  - Approach: `@serwist/next` (modern replacement for `next-pwa`); cache the shell, never cache game state.
-
-- **Install prompt UX** — **P2**
-  - Gap: `beforeinstallprompt` is not handled.
-  - Impact: returning users do not get a "Add to Home Screen" hint.
-  - Approach: small banner that listens for the event and shows a "Install" button.
 
 ---
 
@@ -99,20 +83,6 @@
 
 ---
 
-## Configuration
-
-- **Feature flags** — **P2**
-  - Gap: theme + future experiments hardcoded.
-  - Impact: cannot dark-launch features.
-  - Approach: simple flag service (LaunchDarkly, Unleash, or a homemade Redis-backed one) keyed by `playerId`.
-
-- **Per-mode config externalised** — **P2**
-  - Gap: `EliteConfig` lives in `packages/core/src/core/scoring.ts` with the default in code.
-  - Impact: balance tweaks require a deploy.
-  - Approach: load `EliteConfig` from a remote JSON (Redis or S3) at game-create time; cache for 60 s. The existing `Partial<EliteConfig>` override seam is already there.
-
----
-
 ## Documentation
 
 - **API reference (TypeDoc)** — **P2**
@@ -136,4 +106,4 @@
 
 - **P0 (must-have before public launch):** graceful shutdown.
 - **P1 (polished v1):** bundle analyzer + Lighthouse CI, accessibility tests, WS load tests, runbook.
-- **P2 (future):** idempotent retries, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
+- **P2 (future):** idempotent retries, GDPR export/delete, image policy + code-splitting, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
