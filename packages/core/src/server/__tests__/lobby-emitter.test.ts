@@ -34,9 +34,9 @@ describe("LobbyEmitter", () => {
 
   it("unsubscribing inside a notify callback is safe", () => {
     const emitter = getLobbyEmitter();
-    let unsub: () => void;
-    const fn = vi.fn(() => unsub());
-    unsub = emitter.subscribe(fn);
+    const unsubRef: { current: () => void } = { current: () => {} };
+    const fn = vi.fn(() => unsubRef.current());
+    unsubRef.current = emitter.subscribe(fn);
     expect(() => emitter.notify()).not.toThrow();
     emitter.notify();
     // fn was called exactly once (the first notify unsubscribed it)

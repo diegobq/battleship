@@ -104,7 +104,9 @@ describe("addSecondPlayer", () => {
     const clock = makeFakeClock();
     const host = createPlayer("host", "Host");
     const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
-    const game = addSecondPlayer(lobby, createPlayer("guest", "Guest"), { idFactory: nextId });
+    const game = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
     expect(game.status).toBe("placement");
   });
 
@@ -112,7 +114,9 @@ describe("addSecondPlayer", () => {
     const clock = makeFakeClock();
     const host = createPlayer("host", "Host");
     const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
-    const game = addSecondPlayer(lobby, createPlayer("guest", "Guest"), { idFactory: nextId });
+    const game = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
     expect(game.players["host"].ships).toHaveLength(1);
     expect(game.players["guest"].ships).toHaveLength(1);
   });
@@ -120,7 +124,9 @@ describe("addSecondPlayer", () => {
   it("throws if the game is not in lobby status", () => {
     const { playing } = buildPlayingGame();
     expect(() =>
-      addSecondPlayer(playing, createPlayer("third", "Third"), { idFactory: nextId }),
+      addSecondPlayer(playing, createPlayer("third", "Third"), {
+        idFactory: nextId,
+      }),
     ).toThrow(GameRuleError);
   });
 
@@ -128,11 +134,15 @@ describe("addSecondPlayer", () => {
     const clock = makeFakeClock();
     const host = createPlayer("host", "Host");
     const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
-    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), { idFactory: nextId });
+    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
     // Simulate still-lobby game with two players by checking the guard
     expect(placement.status).toBe("placement");
     expect(() =>
-      addSecondPlayer(placement, createPlayer("extra", "Extra"), { idFactory: nextId }),
+      addSecondPlayer(placement, createPlayer("extra", "Extra"), {
+        idFactory: nextId,
+      }),
     ).toThrow(GameRuleError);
   });
 });
@@ -144,7 +154,9 @@ describe("placeFleet", () => {
     const clock = makeFakeClock();
     const host = createPlayer("host", "Host");
     const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
-    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), { idFactory: nextId });
+    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
     const shipId = placement.players["host"].ships[0].id;
     const next = placeFleet(
       placement,
@@ -165,7 +177,9 @@ describe("placeFleet", () => {
     const clock = makeFakeClock();
     const host = createPlayer("host", "Host");
     const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
-    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), { idFactory: nextId });
+    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
     const hostShipId = placement.players["host"].ships[0].id;
     const afterOne = placeFleet(
       placement,
@@ -180,7 +194,9 @@ describe("placeFleet", () => {
     const clock = makeFakeClock();
     const host = createPlayer("host", "Host");
     const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
-    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), { idFactory: nextId });
+    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
     expect(() =>
       placeFleet(placement, "host", [], { clock, rng: makeSeededRng(1) }),
     ).toThrow(GameRuleError);
@@ -191,7 +207,9 @@ describe("placeFleet", () => {
     const config: GameConfig = { ...CONFIG, fleet: { Submarine: 2 } };
     const host = createPlayer("host", "Host");
     const lobby = createGame({ id: "g1", config, host, clock });
-    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), { idFactory: nextId });
+    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
     const [s1, s2] = placement.players["host"].ships;
     expect(() =>
       placeFleet(
@@ -239,7 +257,9 @@ describe("processShot", () => {
     const { playing, clock, activeId } = buildPlayingGame();
     const opponentId = activeId === "host" ? "guest" : "host";
     const { r, c } = playing.players[opponentId].ships[0].positions[0];
-    const { game: next, result } = processShot(playing, activeId, r, c, { clock });
+    const { game: next, result } = processShot(playing, activeId, r, c, {
+      clock,
+    });
     expect(result.gameOver).toBe(true);
     expect(next.status).toBe("finished");
     expect(next.winnerId).toBe(activeId);
@@ -248,7 +268,7 @@ describe("processShot", () => {
   it("alternates the active player after each shot", () => {
     const { playing, clock, activeId, opponentId } = buildPlayingGame();
     // Miss to avoid ending game
-    const { r: subR, c: subC } = playing.players[opponentId].ships[0].positions[0];
+    const { r: subR } = playing.players[opponentId].ships[0].positions[0];
     const safeR = subR === 0 ? 1 : 0;
     const { game: next } = processShot(playing, activeId, safeR, 0, { clock });
     expect(next.activePlayerId).toBe(opponentId);
@@ -277,7 +297,7 @@ describe("processShot", () => {
 
 describe("handleTurnTimeout", () => {
   it("advances the turn to the opponent", () => {
-    const { playing, clock, activeId, opponentId } = buildPlayingGame();
+    const { playing, clock, opponentId } = buildPlayingGame();
     const next = handleTurnTimeout(playing, { clock });
     expect(next.activePlayerId).toBe(opponentId);
   });
@@ -306,7 +326,9 @@ describe("handleTurnTimeout", () => {
   it("throws when the game is not playing", () => {
     const { playing } = buildPlayingGame();
     const finished: GameState = { ...playing, status: "finished" };
-    expect(() => handleTurnTimeout(finished, { clock: makeFakeClock() })).toThrow(GameRuleError);
+    expect(() =>
+      handleTurnTimeout(finished, { clock: makeFakeClock() }),
+    ).toThrow(GameRuleError);
   });
 });
 

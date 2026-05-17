@@ -12,9 +12,12 @@ import {
 } from "../rules";
 import { makeSeededRng } from "../rng";
 import { createEmptyGrid } from "../board";
-import type { GameState, PlayerState } from "../types";
+import type { GameState, PlayerState, Ship } from "../types";
 
-function makePlayer(id: string, overrides: Partial<PlayerState> = {}): PlayerState {
+function makePlayer(
+  id: string,
+  overrides: Partial<PlayerState> = {},
+): PlayerState {
   return {
     id,
     name: id,
@@ -99,7 +102,9 @@ describe("decideFirstPlayer", () => {
   });
 
   it("throws INVALID_PLAYER_COUNT for an empty list", () => {
-    expect(() => decideFirstPlayer(makeSeededRng(1), [])).toThrow(GameRuleError);
+    expect(() => decideFirstPlayer(makeSeededRng(1), [])).toThrow(
+      GameRuleError,
+    );
     try {
       decideFirstPlayer(makeSeededRng(1), []);
     } catch (e) {
@@ -166,13 +171,31 @@ describe("validateShot", () => {
 describe("resolveWinCondition", () => {
   it("returns a strategy that fires when all ships are sunk", () => {
     const strategy = resolveWinCondition("Elite");
-    const sunkShips = [{ id: "s", type: "Submarine", length: 1, hits: 1, positions: [], placed: true } as const];
+    const sunkShips: Ship[] = [
+      {
+        id: "s",
+        type: "Submarine",
+        length: 1,
+        hits: 1,
+        positions: [],
+        placed: true,
+      },
+    ];
     expect(strategy.isGameOver(sunkShips, makeGame())).toBe(true);
   });
 
   it("returns false when ships still have health", () => {
     const strategy = resolveWinCondition("Classic");
-    const unsunkShip = [{ id: "s", type: "Cruiser", length: 3, hits: 1, positions: [], placed: true } as const];
+    const unsunkShip: Ship[] = [
+      {
+        id: "s",
+        type: "Cruiser",
+        length: 3,
+        hits: 1,
+        positions: [],
+        placed: true,
+      },
+    ];
     expect(strategy.isGameOver(unsunkShip, makeGame())).toBe(false);
   });
 
@@ -193,8 +216,12 @@ describe("resolveTurnStrategy", () => {
 describe("alternatingTurnStrategy", () => {
   it("always returns the opponent regardless of hit", () => {
     const game = makeGame();
-    expect(alternatingTurnStrategy.nextPlayer(game, "host", true)).toBe("guest");
-    expect(alternatingTurnStrategy.nextPlayer(game, "host", false)).toBe("guest");
+    expect(alternatingTurnStrategy.nextPlayer(game, "host", true)).toBe(
+      "guest",
+    );
+    expect(alternatingTurnStrategy.nextPlayer(game, "host", false)).toBe(
+      "guest",
+    );
   });
 });
 
@@ -212,12 +239,26 @@ describe("hitKeepsTurnStrategy", () => {
 
 describe("isGameOver", () => {
   it("returns false when a ship still has hits remaining", () => {
-    const ship: import("../types").Ship = { id: "s", type: "Submarine", length: 1, hits: 0, positions: [], placed: true };
+    const ship: import("../types").Ship = {
+      id: "s",
+      type: "Submarine",
+      length: 1,
+      hits: 0,
+      positions: [],
+      placed: true,
+    };
     expect(isGameOver([ship])).toBe(false);
   });
 
   it("returns true when all ships are fully hit", () => {
-    const ship: import("../types").Ship = { id: "s", type: "Submarine", length: 1, hits: 1, positions: [], placed: true };
+    const ship: import("../types").Ship = {
+      id: "s",
+      type: "Submarine",
+      length: 1,
+      hits: 1,
+      positions: [],
+      placed: true,
+    };
     expect(isGameOver([ship])).toBe(true);
   });
 });

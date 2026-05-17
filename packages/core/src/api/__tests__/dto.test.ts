@@ -29,21 +29,29 @@ describe("parseCreateGameRequest", () => {
   });
 
   it("throws 400 when playerName is empty string", () => {
-    expect(() => parseCreateGameRequest({ mode: "Classic", playerName: "  " })).toThrow(ApiError);
+    expect(() =>
+      parseCreateGameRequest({ mode: "Classic", playerName: "  " }),
+    ).toThrow(ApiError);
   });
 
   it("throws 400 when playerName exceeds 32 characters", () => {
     const long = "A".repeat(33);
-    expect(() => parseCreateGameRequest({ mode: "Classic", playerName: long })).toThrow(ApiError);
+    expect(() =>
+      parseCreateGameRequest({ mode: "Classic", playerName: long }),
+    ).toThrow(ApiError);
   });
 
   it("throws 400 for an unknown mode", () => {
-    expect(() => parseCreateGameRequest({ mode: "DeathMatch", playerName: "Alice" })).toThrow(ApiError);
+    expect(() =>
+      parseCreateGameRequest({ mode: "DeathMatch", playerName: "Alice" }),
+    ).toThrow(ApiError);
   });
 
   it("accepts all three valid modes", () => {
     for (const mode of ["Classic", "Risk", "Elite"]) {
-      expect(() => parseCreateGameRequest({ mode, playerName: "Alice" })).not.toThrow();
+      expect(() =>
+        parseCreateGameRequest({ mode, playerName: "Alice" }),
+      ).not.toThrow();
     }
   });
 
@@ -130,7 +138,9 @@ describe("parseJoinGameRequest", () => {
   });
 
   it("throws 400 when playerName is empty", () => {
-    expect(() => parseJoinGameRequest({ gameId: "g1", playerName: "" })).toThrow(ApiError);
+    expect(() =>
+      parseJoinGameRequest({ gameId: "g1", playerName: "" }),
+    ).toThrow(ApiError);
   });
 });
 

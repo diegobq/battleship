@@ -1,9 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { placementReducer, initPlacementState, allShipsPlaced, canPreviewPlacement } from "../placementReducer";
+import {
+  placementReducer,
+  initPlacementState,
+  allShipsPlaced,
+  canPreviewPlacement,
+} from "../placementReducer";
 import type { Ship } from "@battleship/core";
 
 function makeShip(id: string, length = 2): Ship {
-  return { id, type: "Destroyer", length, hits: 0, positions: [], placed: false };
+  return {
+    id,
+    type: "Destroyer",
+    length,
+    hits: 0,
+    positions: [],
+    placed: false,
+  };
 }
 
 function makeState(ships: Ship[] = [makeShip("s1")]) {
@@ -17,7 +29,11 @@ describe("initPlacementState", () => {
   });
 
   it("resets all ships to unplaced", () => {
-    const placed: Ship = { ...makeShip("s1"), placed: true, positions: [{ r: 0, c: 0 }] };
+    const placed: Ship = {
+      ...makeShip("s1"),
+      placed: true,
+      positions: [{ r: 0, c: 0 }],
+    };
     const state = initPlacementState([placed]);
     expect(state.ships[0].placed).toBe(false);
     expect(state.ships[0].positions).toEqual([]);

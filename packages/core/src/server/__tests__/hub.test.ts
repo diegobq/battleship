@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { WebSocketHub, getHub, __resetHubForTests, isHubInitialized } from "../ws/hub";
+import {
+  WebSocketHub,
+  getHub,
+  __resetHubForTests,
+  isHubInitialized,
+} from "../ws/hub";
 import type { HubSocket } from "../ws/hub";
 import type { GameState } from "../../core/types";
 import { createGame, createPlayer } from "../../core/game";
@@ -54,7 +59,10 @@ describe("WebSocketHub", () => {
     const second = makeSock();
     hub.register("g1", "host", first);
     hub.register("g1", "host", second);
-    expect(first.close).toHaveBeenCalledWith(4000, "Replaced by new connection.");
+    expect(first.close).toHaveBeenCalledWith(
+      4000,
+      "Replaced by new connection.",
+    );
   });
 
   it("unregister removes a player's connection", () => {
@@ -105,6 +113,9 @@ describe("WebSocketHub", () => {
     expect(guestSock.sends).toHaveLength(1);
     const hostMsg = JSON.parse(hostSock.sends[0]);
     expect(hostMsg.type).toBe("GAME_STATE_UPDATE");
+    expect(JSON.parse(guestSock.sends[0])).toMatchObject({
+      type: "GAME_STATE_UPDATE",
+    });
   });
 
   it("size reflects total registered connections across all games", () => {

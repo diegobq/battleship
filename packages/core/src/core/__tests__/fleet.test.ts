@@ -8,7 +8,11 @@ import {
 
 describe("defaultFleetConfig", () => {
   it("returns the standard 3-ship config", () => {
-    expect(defaultFleetConfig()).toEqual({ Cruiser: 1, Destroyer: 1, Submarine: 1 });
+    expect(defaultFleetConfig()).toEqual({
+      Cruiser: 1,
+      Destroyer: 1,
+      Submarine: 1,
+    });
   });
 
   it("returns a fresh copy each call (no shared mutation)", () => {

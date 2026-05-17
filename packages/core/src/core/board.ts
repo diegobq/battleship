@@ -14,7 +14,7 @@ export function createEmptyGrid(size = BOARD_SIZE): BoardCellStatus[][] {
   return grid;
 }
 
-export function cloneGrid(grid: BoardCellStatus[][]): BoardCellStatus[][] {
+function cloneGrid(grid: BoardCellStatus[][]): BoardCellStatus[][] {
   return grid.map((row) => [...row]);
 }
 

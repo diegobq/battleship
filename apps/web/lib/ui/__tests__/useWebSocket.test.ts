@@ -97,7 +97,8 @@ describe("useWebSocket", () => {
   it("send() returns true and forwards data when the socket is OPEN", () => {
     const { result } = renderHook(() => useWebSocket({ url: "ws://test" }));
     act(() => lastSocket().simulateOpen());
-    const ok = act(() => result.current.send("hello"));
+    const ok = result.current.send("hello");
+    expect(ok).toBe(true);
     expect(lastSocket().send).toHaveBeenCalledWith("hello");
   });
 

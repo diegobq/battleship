@@ -10,6 +10,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint app/ lib/",
+    "lint:fix": "eslint app/ lib/ --fix",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

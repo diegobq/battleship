@@ -1,12 +1,23 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { getRegistry, __resetRegistryForTests, isRegistryInitialized } from "../registry";
+import {
+  getRegistry,
+  __resetRegistryForTests,
+  isRegistryInitialized,
+} from "../registry";
 import { makeFakeClock } from "../../core/clock";
 import { createGame, createPlayer } from "../../core/game";
 import type { GameState } from "../../core/types";
 
-const CONFIG = { mode: "Classic", fleet: { Submarine: 1 }, turnTimerMs: 60_000 } as const;
+const CONFIG = {
+  mode: "Classic",
+  fleet: { Submarine: 1 },
+  turnTimerMs: 60_000,
+} as const;
 
-function makeGame(id: string, status: GameState["status"] = "lobby"): GameState {
+function makeGame(
+  id: string,
+  status: GameState["status"] = "lobby",
+): GameState {
   const host = createPlayer("host", "Host");
   const game = createGame({ id, config: CONFIG, host, clock: makeFakeClock() });
   return { ...game, status };

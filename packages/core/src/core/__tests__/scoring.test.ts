@@ -38,11 +38,17 @@ describe("Classic mode", () => {
   });
 
   it("increments consecutiveHits on a hit", () => {
-    expect(awardScore(hit({ mode: "Classic", previousConsecutiveHits: 2 })).consecutiveHits).toBe(3);
+    expect(
+      awardScore(hit({ mode: "Classic", previousConsecutiveHits: 2 }))
+        .consecutiveHits,
+    ).toBe(3);
   });
 
   it("resets consecutiveHits to 0 on a miss", () => {
-    expect(awardScore(miss({ mode: "Classic", previousConsecutiveHits: 5 })).consecutiveHits).toBe(0);
+    expect(
+      awardScore(miss({ mode: "Classic", previousConsecutiveHits: 5 }))
+        .consecutiveHits,
+    ).toBe(0);
   });
 });
 
@@ -70,12 +76,15 @@ describe("Elite mode — accuracy bonus", () => {
   it("awards full accuracy bonus when p(hit) approaches 0", () => {
     // 1 ship cell out of 10000 hidden → p≈0 → bonus ≈ accuracyBonusMax
     const result = awardScore(hit({ unHitShipCells: 1, hiddenCells: 10000 }));
-    const maxPossible = DEFAULT_ELITE_CONFIG.basePoints + DEFAULT_ELITE_CONFIG.accuracyBonusMax;
+    const maxPossible =
+      DEFAULT_ELITE_CONFIG.basePoints + DEFAULT_ELITE_CONFIG.accuracyBonusMax;
     expect(result.scoreAwarded).toBeGreaterThan(maxPossible - 2);
   });
 
   it("accuracy bonus is proportional (midpoint gives roughly half)", () => {
-    const halfBonusResult = awardScore(hit({ unHitShipCells: 5, hiddenCells: 10 }));
+    const halfBonusResult = awardScore(
+      hit({ unHitShipCells: 5, hiddenCells: 10 }),
+    );
     // p=0.5 → bonus = accuracyBonusMax * 0.5 = 20 → score ≈ 30
     expect(halfBonusResult.scoreAwarded).toBeGreaterThan(25);
     expect(halfBonusResult.scoreAwarded).toBeLessThan(40);
@@ -86,24 +95,36 @@ describe("Elite mode — accuracy bonus", () => {
 
 describe("Elite mode — consecutive multiplier", () => {
   it("uses multiplier[1] = 1 for the first hit (streak becomes 1)", () => {
-    const base = awardScore(hit({ previousConsecutiveHits: 0, unHitShipCells: 5, hiddenCells: 5 }));
+    const base = awardScore(
+      hit({ previousConsecutiveHits: 0, unHitShipCells: 5, hiddenCells: 5 }),
+    );
     // multiplier[1]=1 → same as no multiplier
     expect(base.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.basePoints);
   });
 
   it("applies 1.5× at streak=2", () => {
-    const result = awardScore(hit({ previousConsecutiveHits: 1, unHitShipCells: 5, hiddenCells: 5 }));
-    expect(result.scoreAwarded).toBe(Math.round(DEFAULT_ELITE_CONFIG.basePoints * 1.5));
+    const result = awardScore(
+      hit({ previousConsecutiveHits: 1, unHitShipCells: 5, hiddenCells: 5 }),
+    );
+    expect(result.scoreAwarded).toBe(
+      Math.round(DEFAULT_ELITE_CONFIG.basePoints * 1.5),
+    );
   });
 
   it("applies 2× at streak=3", () => {
-    const result = awardScore(hit({ previousConsecutiveHits: 2, unHitShipCells: 5, hiddenCells: 5 }));
+    const result = awardScore(
+      hit({ previousConsecutiveHits: 2, unHitShipCells: 5, hiddenCells: 5 }),
+    );
     expect(result.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.basePoints * 2);
   });
 
   it("clamps to the last multiplier (3×) at streak ≥ 4", () => {
-    const at4 = awardScore(hit({ previousConsecutiveHits: 3, unHitShipCells: 5, hiddenCells: 5 }));
-    const at10 = awardScore(hit({ previousConsecutiveHits: 9, unHitShipCells: 5, hiddenCells: 5 }));
+    const at4 = awardScore(
+      hit({ previousConsecutiveHits: 3, unHitShipCells: 5, hiddenCells: 5 }),
+    );
+    const at10 = awardScore(
+      hit({ previousConsecutiveHits: 9, unHitShipCells: 5, hiddenCells: 5 }),
+    );
     expect(at4.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.basePoints * 3);
     expect(at10.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.basePoints * 3);
   });
@@ -115,20 +136,28 @@ describe("Elite mode — reflex bonus", () => {
   const cfg = { unHitShipCells: 5, hiddenCells: 5, previousConsecutiveHits: 0 };
 
   it("applies the reflex multiplier at exactly reflexWindowMs", () => {
-    const within = awardScore(hit({ ...cfg, timeTakenMs: DEFAULT_ELITE_CONFIG.reflexWindowMs }));
-    const base = awardScore(hit({ ...cfg, timeTakenMs: DEFAULT_ELITE_CONFIG.reflexWindowMs + 1 }));
+    const within = awardScore(
+      hit({ ...cfg, timeTakenMs: DEFAULT_ELITE_CONFIG.reflexWindowMs }),
+    );
+    const base = awardScore(
+      hit({ ...cfg, timeTakenMs: DEFAULT_ELITE_CONFIG.reflexWindowMs + 1 }),
+    );
     expect(within.scoreAwarded).toBeGreaterThan(base.scoreAwarded);
   });
 
   it("does not apply the reflex multiplier one ms after the window", () => {
-    const just_outside = awardScore(hit({ ...cfg, timeTakenMs: DEFAULT_ELITE_CONFIG.reflexWindowMs + 1 }));
+    const just_outside = awardScore(
+      hit({ ...cfg, timeTakenMs: DEFAULT_ELITE_CONFIG.reflexWindowMs + 1 }),
+    );
     expect(just_outside.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.basePoints);
   });
 
   it("applies reflex at 1 ms (well within window)", () => {
     const fast = awardScore(hit({ ...cfg, timeTakenMs: 1 }));
     expect(fast.scoreAwarded).toBe(
-      Math.round(DEFAULT_ELITE_CONFIG.basePoints * DEFAULT_ELITE_CONFIG.reflexMultiplier),
+      Math.round(
+        DEFAULT_ELITE_CONFIG.basePoints * DEFAULT_ELITE_CONFIG.reflexMultiplier,
+      ),
     );
   });
 });
@@ -142,7 +171,9 @@ describe("Elite mode — miss penalty", () => {
   });
 
   it("resets consecutiveHits to 0 on a miss", () => {
-    const result = awardScore(miss({ mode: "Elite", previousConsecutiveHits: 3 }));
+    const result = awardScore(
+      miss({ mode: "Elite", previousConsecutiveHits: 3 }),
+    );
     expect(result.consecutiveHits).toBe(0);
   });
 });

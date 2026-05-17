@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { parseClientMessage, sanitizeGameStateFor } from "../ws/protocol";
-import { createEmptyGrid } from "../../core/board";
 import { makeFakeClock } from "../../core/clock";
 import { createGame, createPlayer } from "../../core/game";
 import type { GameState } from "../../core/types";
@@ -19,19 +18,25 @@ function makeGame(): GameState {
 
 describe("parseClientMessage — PING", () => {
   it("parses a PING message", () => {
-    expect(parseClientMessage(JSON.stringify({ type: "PING" }))).toEqual({ type: "PING" });
+    expect(parseClientMessage(JSON.stringify({ type: "PING" }))).toEqual({
+      type: "PING",
+    });
   });
 });
 
 describe("parseClientMessage — LEAVE_GAME", () => {
   it("parses a LEAVE_GAME message", () => {
-    expect(parseClientMessage(JSON.stringify({ type: "LEAVE_GAME" }))).toEqual({ type: "LEAVE_GAME" });
+    expect(parseClientMessage(JSON.stringify({ type: "LEAVE_GAME" }))).toEqual({
+      type: "LEAVE_GAME",
+    });
   });
 });
 
 describe("parseClientMessage — SHOOT", () => {
   it("parses a valid SHOOT message", () => {
-    const msg = parseClientMessage(JSON.stringify({ type: "SHOOT", payload: { r: 2, c: 4 } }));
+    const msg = parseClientMessage(
+      JSON.stringify({ type: "SHOOT", payload: { r: 2, c: 4 } }),
+    );
     expect(msg).toEqual({ type: "SHOOT", payload: { r: 2, c: 4 } });
   });
 
@@ -43,7 +48,9 @@ describe("parseClientMessage — SHOOT", () => {
 
   it("throws when r or c are non-integer numbers", () => {
     expect(() =>
-      parseClientMessage(JSON.stringify({ type: "SHOOT", payload: { r: 1.5, c: 0 } })),
+      parseClientMessage(
+        JSON.stringify({ type: "SHOOT", payload: { r: 1.5, c: 0 } }),
+      ),
     ).toThrow();
   });
 
@@ -59,14 +66,22 @@ describe("parseClientMessage — PLACE_FLEET", () => {
 
   it("parses a valid PLACE_FLEET message", () => {
     const msg = parseClientMessage(
-      JSON.stringify({ type: "PLACE_FLEET", payload: { placements: [placement] } }),
+      JSON.stringify({
+        type: "PLACE_FLEET",
+        payload: { placements: [placement] },
+      }),
     );
     expect(msg.type).toBe("PLACE_FLEET");
   });
 
   it("throws when placements is not an array", () => {
     expect(() =>
-      parseClientMessage(JSON.stringify({ type: "PLACE_FLEET", payload: { placements: placement } })),
+      parseClientMessage(
+        JSON.stringify({
+          type: "PLACE_FLEET",
+          payload: { placements: placement },
+        }),
+      ),
     ).toThrow();
   });
 
@@ -84,7 +99,9 @@ describe("parseClientMessage — PLACE_FLEET", () => {
   it("throws when a placement entry is missing shipId", () => {
     const bad = { r: 0, c: 0, orientation: "horizontal" };
     expect(() =>
-      parseClientMessage(JSON.stringify({ type: "PLACE_FLEET", payload: { placements: [bad] } })),
+      parseClientMessage(
+        JSON.stringify({ type: "PLACE_FLEET", payload: { placements: [bad] } }),
+      ),
     ).toThrow();
   });
 });
@@ -99,7 +116,9 @@ describe("parseClientMessage — error cases", () => {
   });
 
   it("throws for an unknown message type", () => {
-    expect(() => parseClientMessage(JSON.stringify({ type: "NUKE" }))).toThrow();
+    expect(() =>
+      parseClientMessage(JSON.stringify({ type: "NUKE" })),
+    ).toThrow();
   });
 });
 
@@ -199,6 +218,8 @@ describe("sanitizeGameStateFor", () => {
       },
     };
     const sanitized = sanitizeGameStateFor(withSunk, "guest");
-    expect(sanitized.players["host"].ships[0].positions).toEqual([{ r: 0, c: 0 }]);
+    expect(sanitized.players["host"].ships[0].positions).toEqual([
+      { r: 0, c: 0 },
+    ]);
   });
 });

@@ -21,9 +21,17 @@ class MockWebSocket {
     MockWebSocket.last = this;
   }
 
-  open() { this.readyState = 1; this.onopen?.(); }
-  receive(data: string) { this.onmessage?.({ data }); }
-  disconnect() { this.readyState = 3; this.onclose?.(); }
+  open() {
+    this.readyState = 1;
+    this.onopen?.();
+  }
+  receive(data: string) {
+    this.onmessage?.({ data });
+  }
+  disconnect() {
+    this.readyState = 3;
+    this.onclose?.();
+  }
 }
 
 beforeEach(() => {
@@ -45,7 +53,9 @@ function Consumer() {
     <div>
       <div data-testid="status">{ctx.state?.status ?? "none"}</div>
       <div data-testid="connection">{ctx.connection}</div>
-      <div data-testid="lastShot">{ctx.lastShot ? ctx.lastShot.shooterId : "none"}</div>
+      <div data-testid="lastShot">
+        {ctx.lastShot ? ctx.lastShot.shooterId : "none"}
+      </div>
       <div data-testid="timeout">{ctx.turnExpiredPlayerId ?? "none"}</div>
       <div data-testid="error">{ctx.errorMessage ?? "none"}</div>
       <button onClick={ctx.dismissError}>dismiss</button>
@@ -144,7 +154,12 @@ describe("GameProvider", () => {
     const { ws } = renderProvider();
     act(() => ws.open());
     act(() =>
-      ws.receive(JSON.stringify({ type: "TURN_TIMEOUT", payload: { playerId: "guest" } })),
+      ws.receive(
+        JSON.stringify({
+          type: "TURN_TIMEOUT",
+          payload: { playerId: "guest" },
+        }),
+      ),
     );
     act(() => vi.advanceTimersByTime(2001));
     expect(screen.getByTestId("timeout").textContent).toBe("none");
@@ -154,7 +169,12 @@ describe("GameProvider", () => {
     const { ws } = renderProvider();
     act(() => ws.open());
     act(() =>
-      ws.receive(JSON.stringify({ type: "ERROR", payload: { code: "WRONG_TURN", message: "Not your turn" } })),
+      ws.receive(
+        JSON.stringify({
+          type: "ERROR",
+          payload: { code: "WRONG_TURN", message: "Not your turn" },
+        }),
+      ),
     );
     expect(screen.getByTestId("error").textContent).toBe("Not your turn");
   });
@@ -163,7 +183,12 @@ describe("GameProvider", () => {
     const { ws } = renderProvider();
     act(() => ws.open());
     act(() =>
-      ws.receive(JSON.stringify({ type: "ERROR", payload: { code: "X", message: "boom" } })),
+      ws.receive(
+        JSON.stringify({
+          type: "ERROR",
+          payload: { code: "X", message: "boom" },
+        }),
+      ),
     );
     act(() => screen.getByText("dismiss").click());
     expect(screen.getByTestId("error").textContent).toBe("none");
@@ -174,6 +199,8 @@ describe("GameProvider", () => {
     act(() => ws.open());
     act(() => ws.disconnect());
     // Closed connection shows closed state (after maxReconnects attempts)
-    expect(["closed", "connecting"]).toContain(screen.getByTestId("connection").textContent);
+    expect(["closed", "connecting"]).toContain(
+      screen.getByTestId("connection").textContent,
+    );
   });
 });

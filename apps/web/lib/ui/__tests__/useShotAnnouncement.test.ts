@@ -20,18 +20,31 @@ function makeShot(overrides: Partial<ShotEvent> = {}): ShotEvent {
 
 describe("formatShot", () => {
   it("describes own hit with score", () => {
-    const msg = formatShot(makeShot({ shooterId: "me", hit: true, scoreAwarded: 10 }), "me");
+    const msg = formatShot(
+      makeShot({ shooterId: "me", hit: true, scoreAwarded: 10 }),
+      "me",
+    );
     expect(msg).toContain("You hit");
     expect(msg).toContain("+10 points");
   });
 
   it("describes own miss", () => {
-    const msg = formatShot(makeShot({ shooterId: "me", hit: false, cellStatus: "miss" }), "me");
+    const msg = formatShot(
+      makeShot({ shooterId: "me", hit: false, cellStatus: "miss" }),
+      "me",
+    );
     expect(msg).toContain("You missed");
   });
 
   it("describes own sunk ship", () => {
-    const msg = formatShot(makeShot({ shooterId: "me", sunkShipType: "Submarine", scoreAwarded: 20 }), "me");
+    const msg = formatShot(
+      makeShot({
+        shooterId: "me",
+        sunkShipType: "Submarine",
+        scoreAwarded: 20,
+      }),
+      "me",
+    );
     expect(msg).toContain("You sunk");
     expect(msg).toContain("Submarine");
     expect(msg).toContain("+20 points");
@@ -43,12 +56,18 @@ describe("formatShot", () => {
   });
 
   it("describes opponent miss", () => {
-    const msg = formatShot(makeShot({ shooterId: "them", hit: false, cellStatus: "miss" }), "me");
+    const msg = formatShot(
+      makeShot({ shooterId: "them", hit: false, cellStatus: "miss" }),
+      "me",
+    );
     expect(msg).toContain("Opponent missed");
   });
 
   it("describes opponent sinking my ship", () => {
-    const msg = formatShot(makeShot({ shooterId: "them", sunkShipType: "Cruiser" }), "me");
+    const msg = formatShot(
+      makeShot({ shooterId: "them", sunkShipType: "Cruiser" }),
+      "me",
+    );
     expect(msg).toContain("Opponent sunk your Cruiser");
   });
 
@@ -79,7 +98,12 @@ describe("useShotAnnouncement", () => {
 
   it("accumulates multiple shots into the list", () => {
     const shot1 = makeShot({ shooterId: "me", hit: true, at: 1 });
-    const shot2 = makeShot({ shooterId: "them", hit: false, cellStatus: "miss", at: 2 });
+    const shot2 = makeShot({
+      shooterId: "them",
+      hit: false,
+      cellStatus: "miss",
+      at: 2,
+    });
     const { result, rerender } = renderHook(
       ({ s }) => useShotAnnouncement(s, "me"),
       { initialProps: { s: null as ShotEvent | null } },
