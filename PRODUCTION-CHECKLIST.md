@@ -45,11 +45,6 @@
 
 ## Security
 
-- **Dependency audit in CI** — **P0**
-  - Gap: `pnpm audit` is never run.
-  - Impact: known-vulnerable `ws` / `next` / transitive deps ship to prod.
-  - Approach: `pnpm audit --prod --audit-level high` step in the CI pipeline; fail on high/critical.
-
 - **Input length caps & sanitisation** — **P1**
   - Gap: player names are length-capped at 32 (`packages/core/src/api/dto.ts`) but not Unicode-normalised; emoji and zero-width characters pass through.
   - Impact: spoofed identical-looking names; rendering edge cases.
@@ -240,6 +235,6 @@
 
 ## Summary by priority
 
-- **P0 (must-have before public launch):** graceful shutdown, dependency audit in CI, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
+- **P0 (must-have before public launch):** graceful shutdown, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
 - **P1 (polished v1):** input normalisation, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, ToS, accessibility tests, WS load tests, runbook.
 - **P2 (future):** idempotent retries, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.

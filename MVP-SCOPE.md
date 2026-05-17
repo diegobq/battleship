@@ -61,12 +61,13 @@
 
 ## Infrastructure & Scaling
 
-| Topic                  | MVP state                                                                                  | Detail                                                                             |
-| ---------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| **Horizontal scaling** | Single-instance only. WebSocket hub is in-memory; no Redis pub-sub for multi-node fan-out. | [SOLUTION-3.md](./SOLUTION-3.md)                                                   |
-| **Graceful shutdown**  | No `SIGTERM` handler. Active WS connections drop on every deploy.                          | [PRODUCTION-CHECKLIST.md § Reliability](./PRODUCTION-CHECKLIST.md#reliability)     |
-| **CI/CD pipeline**     | No `.github/workflows/`. Nothing gates a broken `main`.                                    | [PRODUCTION-CHECKLIST.md § DevOps & CI/CD](./PRODUCTION-CHECKLIST.md#devops--cicd) |
-| **Env schema**         | `process.env.*` read directly; a missing var fails late and deep.                          | [PRODUCTION-CHECKLIST.md § Configuration](./PRODUCTION-CHECKLIST.md#configuration) |
+| Topic                  | MVP state                                                                                                                                       | Detail                                                                             |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **Horizontal scaling** | Single-instance only. WebSocket hub is in-memory; no Redis pub-sub for multi-node fan-out.                                                      | [SOLUTION-3.md](./SOLUTION-3.md)                                                   |
+| **Graceful shutdown**  | No `SIGTERM` handler. Active WS connections drop on every deploy.                                                                               | [PRODUCTION-CHECKLIST.md § Reliability](./PRODUCTION-CHECKLIST.md#reliability)     |
+| **CI/CD pipeline**     | No `.github/workflows/`. Nothing gates a broken `main`.                                                                                         | [PRODUCTION-CHECKLIST.md § DevOps & CI/CD](./PRODUCTION-CHECKLIST.md#devops--cicd) |
+| **Dependency audit**   | `pnpm audit` is not run. Belongs in the CI pipeline as a `pnpm audit --prod --audit-level high` step — no standalone application code required. | [PRODUCTION-CHECKLIST.md § DevOps & CI/CD](./PRODUCTION-CHECKLIST.md#devops--cicd) |
+| **Env schema**         | `process.env.*` read directly; a missing var fails late and deep.                                                                               | [PRODUCTION-CHECKLIST.md § Configuration](./PRODUCTION-CHECKLIST.md#configuration) |
 
 ---
 
