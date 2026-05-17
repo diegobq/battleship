@@ -6,9 +6,11 @@
     "dev": "tsx server.ts",
     "build": "next build",
     "start": "NODE_ENV=production tsx server.ts",
-    "test": "vitest run",
+    "test": "vitest run && playwright test",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:a11y": "playwright test",
+    "test:a11y:ui": "playwright test --ui",
     "lint": "eslint app/ lib/",
     "lint:fix": "eslint app/ lib/ --fix",
     "typecheck": "tsc --noEmit",
@@ -24,7 +26,9 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@next/bundle-analyzer": "^16.2.6",
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

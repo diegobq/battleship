@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-The test suite covers the full Battleship application stack in two independent Vitest runners — one for the framework-free domain package (`packages/core`) and one for the Next.js web app (`apps/web`). Together they contain **309 tests across 25 files** and exceed all configured coverage thresholds.
+The test suite covers the full Battleship application stack across three independent test runners — two Vitest runners (unit, integration, and behavioural) plus a Playwright suite for accessibility. Together they contain **361 Vitest tests across 30 files** plus **3 Playwright a11y tests**, and exceed all configured coverage thresholds.
 
 The design is driven by three principles:
 
@@ -14,14 +14,15 @@ The design is driven by three principles:
 
 ## 2. Test Architecture
 
-### Two-runner setup
+### Three-runner setup
 
-| Package         | Vitest environment                                     | Config                           |
-| --------------- | ------------------------------------------------------ | -------------------------------- |
-| `packages/core` | `node` (single env — no DOM globals)                   | `packages/core/vitest.config.ts` |
-| `apps/web`      | `node` default + `happy-dom` for `lib/ui/__tests__/**` | `apps/web/vitest.config.ts`      |
+| Runner          | Environment                                            | Config                           | Invocation                          |
+| --------------- | ------------------------------------------------------ | -------------------------------- | ----------------------------------- |
+| `packages/core` | `node` (single env — no DOM globals)                   | `packages/core/vitest.config.ts` | `pnpm -F @battleship/core test`     |
+| `apps/web`      | `node` default + `happy-dom` for `lib/ui/__tests__/**` | `apps/web/vitest.config.mts`     | `pnpm -F @battleship/web test`      |
+| Playwright      | Real Chromium via system Chrome                        | `apps/web/playwright.config.ts`  | `pnpm -F @battleship/web test:a11y` |
 
-The two runners stay separate because the core package must not pull in DOM globals. Leaking a browser API into `packages/core` would mask a real coupling bug between the domain layer and the framework layer.
+The two Vitest runners stay separate because the core package must not pull in DOM globals. Leaking a browser API into `packages/core` would mask a real coupling bug between the domain layer and the framework layer. The Playwright runner uses a real browser because CSS custom properties resolve at paint time — a DOM environment cannot evaluate `var(--brand-primary)` to its hex value, making colour-contrast checks impossible without a real rendering engine.
 
 ### Why happy-dom instead of jsdom
 
@@ -36,11 +37,12 @@ The initial runner used jsdom. jsdom 29.1.1 transitively requires `@exodus/bytes
 
 ### Layering
 
-| Layer                 | Question answered                                                                                          | Where it runs                                                                                                         |
-| --------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **Unit**              | Does this pure function honour its invariants for every input class?                                       | `packages/core/src/core/__tests__/`, `packages/core/src/api/__tests__/`, `apps/web/lib/ui/__tests__/` (pure reducers) |
-| **Integration**       | Do two or more modules wire together correctly using lightweight fakes?                                    | `packages/core/src/server/__tests__/` (registry, hub, timer, handlers, protocol)                                      |
-| **Behavioural (DOM)** | Does this hook/provider produce the expected sequence of state transitions given simulated browser events? | `apps/web/lib/ui/__tests__/` (hook tests under happy-dom)                                                             |
+| Layer                   | Question answered                                                                                          | Where it runs                                                                                                         |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Unit**                | Does this pure function honour its invariants for every input class?                                       | `packages/core/src/core/__tests__/`, `packages/core/src/api/__tests__/`, `apps/web/lib/ui/__tests__/` (pure reducers) |
+| **Integration**         | Do two or more modules wire together correctly using lightweight fakes?                                    | `packages/core/src/server/__tests__/` (registry, hub, timer, handlers, protocol)                                      |
+| **Behavioural (DOM)**   | Does this hook/provider produce the expected sequence of state transitions given simulated browser events? | `apps/web/lib/ui/__tests__/` (hook tests under happy-dom)                                                             |
+| **Accessibility (E2E)** | Does each public view meet WCAG 2 AA with zero axe violations in a real browser?                           | `apps/web/e2e/a11y.test.ts` (Playwright + `@axe-core/playwright`)                                                     |
 
 ---
 
@@ -70,16 +72,27 @@ The initial runner used jsdom. jsdom 29.1.1 transitively requires `@exodus/bytes
 
 | File                                           | Tests | Key invariants pinned                                                                                                                                                                                                                                                                              |
 | ---------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/__tests__/env.test.ts`                    | 8     | `parseEnv` parses valid values/throws on missing required/throws on invalid URL/coerces booleans; defaults applied; NODE_ENV accepted values                                                                                                                                                       |
 | `lib/api/__tests__/errors.test.ts`             | 5     | `apiErrorResponse` status code/error envelope; `handleApiError` delegates ApiError/500 for Error/500 for unknown                                                                                                                                                                                   |
+| `lib/api/__tests__/idempotency.test.ts`        | 8     | `IdempotencyCache` stores+retrieves/expires after TTL/does not expire before TTL/distinct keys independent/`getOrSet` caches result/idempotent on second call; singleton+reset                                                                                                                     |
+| `lib/api/__tests__/rate-limiter.test.ts`       | 5     | allows up to limit/blocks once limit exceeded/window resets after interval/independent per client; `createRateLimiter` factory                                                                                                                                                                     |
+| `lib/api/__tests__/session-token.test.ts`      | 17    | `mintToken` produces non-empty string/different tokens per call/embeds playerId+gameId; `verifyToken` accepts valid token/rejects tampered/rejects wrong gameId/rejects wrong playerId/rejects expired/rejects garbage; `extractTokenFromCookies` parses present/absent/multiple cookies           |
 | `lib/ui/__tests__/placementReducer.test.ts`    | 22    | `initPlacementState` selects first/resets placed/blank grid; SELECT known+unknown; ROTATE h→v→h; PLACE valid/advances selection/null-when-all-placed/OOB no-op/collision no-op/no-selection no-op; REMOVE unplaces+clears/no-op unplaced; RESET clears all; `allShipsPlaced`/`canPreviewPlacement` |
-| `lib/ui/__tests__/playerSession.test.ts`       | 6     | `setPlayerId`/`getPlayerId` stores/scopes per gameId/null-unknown/overwrites; `clearPlayerId` removes/no-op when empty                                                                                                                                                                             |
+| `lib/ui/__tests__/playerSession.test.ts`       | 8     | `setPlayerId`/`getPlayerId` stores/scopes per gameId/null-unknown/overwrites; `clearPlayerId` removes/no-op when empty; `usePlayerId` returns stored value/null when absent                                                                                                                        |
+| `lib/ui/__tests__/useSfx.test.ts`              | 4     | starts default on/reads stored preference/`setSfx` updates state+storage/`toggleSfx` flips value                                                                                                                                                                                                   |
 | `lib/ui/__tests__/useTheme.test.ts`            | 7     | starts default/reads stored on mount/`setTheme` updates state+storage+DOM attribute/default removes attribute/non-default sets attribute/exposes THEMES array                                                                                                                                      |
 | `lib/ui/__tests__/useToast.test.ts`            | 7     | error+info adds with variant/dismiss removes by id/clearAll empties/subscribe notifies on add+dismiss/unsubscribe stops notifications                                                                                                                                                              |
 | `lib/ui/__tests__/useShotAnnouncement.test.ts` | 10    | `formatShot` own hit+miss+sunk/opponent hit+miss+sunk/column letter; `useShotAnnouncement` starts empty/appends on shot/accumulates multiple                                                                                                                                                       |
-| `lib/ui/__tests__/useShotFeedback.test.ts`     | 6     | no-throw for hit+miss+sunk/skips when sfx=off/vibrates [20,40,20] on sunk/vibrates 50 on hit                                                                                                                                                                                                       |
+| `lib/ui/__tests__/useShotFeedback.test.ts`     | 8     | no-throw for hit+miss+sunk/skips when sfx=off/vibrates [20,40,20] on sunk/vibrates 50 on hit/no vibrate on miss/no-throw when Vibration API absent                                                                                                                                                 |
 | `lib/ui/__tests__/useOptimisticShots.test.tsx` | 6     | starts empty/addPending marks/idempotent/reconcile removes/reconcile no-op/multiple tracked independently                                                                                                                                                                                          |
 | `lib/ui/__tests__/useWebSocket.test.ts`        | 9     | connecting state/idle when url null/open transition/closed transition (maxReconnects:0)/error transition/delivers messages to callback/send() true+forwards when OPEN/send() false when not open/reconnects after close                                                                            |
 | `lib/ui/__tests__/GameProvider.test.tsx`       | 9     | starts connecting+no-state/open transition/GAME_STATE_UPDATE sets state/SHOT_RESULT sets lastShot/TURN_TIMEOUT sets turnExpiredPlayerId/clears after 2s/ERROR sets errorMessage/dismissError clears/disconnect transitions                                                                         |
+
+### `apps/web` — accessibility (Playwright)
+
+| File               | Tests | Key invariants pinned                                                                                                                                                                                                                                                              |
+| ------------------ | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/a11y.test.ts` | 3     | Home / lobby: zero axe violations; New game form: zero axe violations; 404 page: zero axe violations. Tests run against the live dev server via `webServer` auto-start. Each violation failure message includes the rule ID, description, and affected node count for fast triage. |
 
 ---
 
@@ -90,14 +103,15 @@ The initial runner used jsdom. jsdom 29.1.1 transitively requires `@exodus/bytes
 | **TDD inner loop** (file watcher, `pnpm -F <pkg> test --watch`)             | Unit tests for the file being edited                                            | Sub-second feedback; the developer is changing one file at a time and needs the tightest possible loop                                              |
 | **Pre-commit** (`pnpm -r test` + `pnpm -r lint`)                            | Unit + integration + behavioural across both packages                           | Catches cross-module regressions before they enter git history; fast enough (~5 s total) to run on every commit without blocking flow               |
 | **CI on PR** (`pnpm -r test:coverage` + `pnpm -r typecheck` + `pnpm build`) | Full suite with coverage thresholds enforced + type check + build               | Guards `main`; coverage threshold gate catches "covered by line, not by branch" regressions; build step catches import errors that tsc alone misses |
-| **Pre-release**                                                             | Manual golden-path checklist in two browsers (one desktop, one mobile viewport) | Confirms the integrated system works end-to-end with a real network and a real browser; Playwright E2E is a Phase-2 follow-on (see §7)              |
+| **CI on PR — a11y** (`pnpm -F @battleship/web test:a11y`)                   | Playwright axe scan of all public views; fails on any WCAG 2 AA violation       | Prevents accessibility regressions from reaching `main`; runs after build so the server starts against production-built output in CI                |
+| **Pre-release**                                                             | Manual golden-path checklist in two browsers (one desktop, one mobile viewport) | Confirms the integrated system works end-to-end with a real network and a real browser                                                              |
 
 **Layer-to-stage mapping:**
 
 - **Unit tests** run at every stage (inner loop through CI). They're fast (< 1 s for the full `packages/core` unit set) and give the earliest signal.
 - **Integration tests** run from pre-commit onward. They take slightly longer (server module setup) but are still well within the pre-commit budget.
 - **Behavioural DOM tests** run from pre-commit onward. happy-dom spins up in ~1.4 s and the hook tests themselves run in < 100 ms, so the total is acceptable in a pre-commit hook.
-- **Manual E2E** runs pre-release only. It requires a running server and two browser instances, making it impractical for every commit.
+- **Accessibility tests** run in CI on PR. They start a real server (~3 s) and drive a real browser (~4 s per view), so they are too slow for a pre-commit hook. The webServer `reuseExistingServer` flag lets developers run them locally against an already-running dev server with no extra startup cost.
 
 ---
 
@@ -144,33 +158,35 @@ Results captured from `pnpm -r test:coverage` immediately after all test files w
 
 | Metric     | Actual | Threshold | Status |
 | ---------- | ------ | --------- | ------ |
-| Statements | 98.54% | 95%       | PASS   |
-| Branches   | 95.25% | 90%       | PASS   |
+| Statements | 98.56% | 95%       | PASS   |
+| Branches   | 95.34% | 90%       | PASS   |
 | Functions  | 100%   | 95%       | PASS   |
-| Lines      | 98.54% | 95%       | PASS   |
+| Lines      | 98.56% | 95%       | PASS   |
 
 Notable uncovered paths (all intentional):
 
-- `dto.ts` lines 116–121: defensive `never` branch in an exhaustive switch — TypeScript guarantees it cannot be reached at runtime.
+- `dto.ts` lines 131–136: defensive `never` branch in an exhaustive switch — TypeScript guarantees it cannot be reached at runtime.
 - `game.ts` lines 87–91, 115–119, 122–123: guard paths that fire only when the caller passes a malformed state object, which cannot happen through the public API.
 - `scoring.ts` line 94: a branch inside `EliteStrategy` that handles a `reflexMultiplier` value of exactly 1 — theoretically reachable but requires a config override not exercised by the test helpers.
+- `fleet.ts` lines 30–32: `if (!def) continue` guard — the `ShipType` union guarantees every key in `DEFAULT_SHIP_DEFINITIONS` is always present; only reachable via a cast that defeats the type system.
 - `handlers.ts` lines 117, 134, 139 / `hub.ts` lines 39, 62, 81: branch arms that handle undefined intermediate values in the WebSocket protocol path — the fakes used in integration tests are stricter than a real WS runtime, so these arms are intentionally never exercised.
 
 ### `apps/web` (thresholds: 80 stmt / 75 branch / 80 fn / 80 lines)
 
 | Metric     | Actual | Threshold | Status |
 | ---------- | ------ | --------- | ------ |
-| Statements | 96.39% | 80%       | PASS   |
-| Branches   | 88.41% | 75%       | PASS   |
-| Functions  | 95.65% | 80%       | PASS   |
-| Lines      | 96.39% | 80%       | PASS   |
+| Statements | 97.30% | 80%       | PASS   |
+| Branches   | 90.56% | 75%       | PASS   |
+| Functions  | 96.87% | 80%       | PASS   |
+| Lines      | 97.30% | 80%       | PASS   |
 
 Notable uncovered paths:
 
-- `playerSession.ts` lines 24–29: `sessionStorage` exception path — browsers throttle storage writes when storage is full; this path is platform-specific and not reachable in happy-dom without deep internals stubbing.
+- `playerSession.ts` lines 7, 12, 17: `typeof window === "undefined"` SSR guard branches — happy-dom always defines `window`, so the server-side early-return path cannot be triggered without replacing the global, which would break all other hook tests in the suite.
+- `session-token.ts` lines 39–44: cookie-parsing edge path for malformed tokens — the paths are covered at the function level but the specific branch for tokens that pass format checks yet fail HMAC verification is excluded to avoid coupling the test to the internal HMAC implementation.
 - `GameProvider.tsx` lines 58–59, 75, 80: WebSocket reconnect backoff arms and the `onerror` handler — the mock WebSocket used in tests exposes lifecycle controls but does not simulate all edge-case sequences; the branches are documented as acceptable gaps.
 - `useWebSocket.ts` lines 38, 48, 53: similar WebSocket lifecycle branches.
-- `useShotFeedback.ts` lines 7, 12: `Audio` constructor branches for `autoplay` policy rejection — the stubbed `Audio.play()` always resolves, so the rejection path cannot be triggered without replacing the stub.
+- `useShotFeedback.ts` lines 7, 18: `Audio` constructor branches for `autoplay` policy rejection — the stubbed `Audio.play()` always resolves, so the rejection path cannot be triggered without replacing the stub.
 
 ---
 
@@ -184,7 +200,11 @@ Testing CSS Modules + Tailwind class output adds almost no signal — it produce
 
 The integration tests in `packages/core/src/server/__tests__/handlers.test.ts` exercise the handler logic with an in-memory registry and hub. They do not start a real HTTP server or establish real WebSocket connections. A full end-to-end test requiring a live server and real network is the Playwright layer.
 
-### Playwright E2E (Phase 2)
+### Accessibility testing and the colour-contrast fix
+
+The Playwright suite (`apps/web/e2e/a11y.test.ts`) caught a real WCAG 2 AA violation during initial setup: every primary-action button that used `background: var(--brand-primary)` paired the text with `color: var(--surface-fg)` (#e6edf3 on #4a8ff7 = 2.7:1, requires 4.5:1). The correct token is `color: var(--surface-bg)` (#0b1220), which gives 6.0:1. Six components were fixed: `new/page.tsx`, `not-found.tsx`, `error.tsx`, `(protected)/game/[gameId]/error.tsx`, `ErrorView.tsx`, and `LobbyTable.tsx`. The home page's CTA button was already correct, using `--brand-secondary` background with `--surface-bg` text — that pattern is now consistently applied everywhere.
+
+### Functional Playwright E2E (Phase 2)
 
 The manual pre-release checklist covers:
 
@@ -195,8 +215,19 @@ The manual pre-release checklist covers:
 5. One player disconnects mid-game and reconnects.
 6. Mobile viewport: drag-and-drop fleet placement, touch-friendly shot targeting.
 
-Automating this with Playwright is the next step after the current exercises are delivered.
+Automating this functional scenario with Playwright is the next step after the current exercises are delivered.
+
+### Load and mutation testing
+
+WebSocket load testing (`k6`) and mutation testing (`stryker`) are intentionally deferred. The former is an infrastructure concern that requires a live deployment target; the latter is a quality-signal audit that adds value once the baseline test suite stabilises. Both are tracked in [MVP-SCOPE.md § Testing](./MVP-SCOPE.md#testing).
 
 ### CI pipeline
 
-No `.github/workflows` configuration is included in the current deliverable. The recommended CI job is: `pnpm install → pnpm -r lint → pnpm -r typecheck → pnpm -r test:coverage → pnpm build`. Coverage threshold enforcement is handled by Vitest's built-in threshold config, so no external tool is needed.
+No `.github/workflows` configuration is included in the current deliverable. The recommended CI job sequence is:
+
+1. `pnpm install`
+2. `pnpm -r lint`
+3. `pnpm -r typecheck`
+4. `pnpm -r test:coverage` (coverage threshold enforcement handled by Vitest built-in config)
+5. `pnpm -F @battleship/web build`
+6. `pnpm -F @battleship/web test:a11y` (starts server from build output, runs axe scans)

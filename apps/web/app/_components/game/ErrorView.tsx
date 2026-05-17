@@ -23,7 +23,7 @@ export default function ErrorView({ title, detail }: ErrorViewProps) {
         className="rounded px-4 py-2 font-semibold"
         style={{
           background: "var(--brand-primary)",
-          color: "var(--surface-fg)",
+          color: "var(--surface-bg)",
         }}
       >
         Back to lobby

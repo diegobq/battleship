@@ -311,6 +311,7 @@ describe("handleClientMessage", () => {
     const { deps, activeCtx, hostSock, guestSock, activeId } =
       buildPlayingScenario();
     const activeSock = activeId === "host" ? hostSock : guestSock;
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     // Corrupt the game state so processShot throws a non-GameRuleError TypeError
     const corrupt = {
       ...deps.registry.get("g1")!,
@@ -329,6 +330,7 @@ describe("handleClientMessage", () => {
     const err = lastMsg<ErrorMessage>(activeSock);
     expect(err.type).toBe("ERROR");
     expect(err.payload.code).toBe("INTERNAL");
+    errorSpy.mockRestore();
   });
 
   // ── Turn timer elapse ────────────────────────────────────────────────────────

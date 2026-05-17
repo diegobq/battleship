@@ -46,8 +46,10 @@ pnpm start    # serve the production build
 ## Test
 
 ```bash
-pnpm test               # run all Vitest unit tests
-pnpm test --coverage    # run tests with V8 coverage report
+pnpm test                                  # run all Vitest unit + integration tests
+pnpm test --coverage                       # run tests with V8 coverage report
+pnpm -F @battleship/web test:a11y          # run Playwright accessibility tests (requires Chrome)
+pnpm -F @battleship/web test:a11y:ui       # open Playwright UI for interactive a11y debugging
 ```
 
 ## Lint

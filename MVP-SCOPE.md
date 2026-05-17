@@ -18,6 +18,7 @@
 - [Code Quality](#code-quality)
 - [Design System Tooling](#design-system-tooling)
 - [Performance](#performance)
+- [Testing](#testing)
 - [Documentation](#documentation)
 - [Legal & Compliance](#legal--compliance)
 
@@ -114,6 +115,16 @@
 | **Lighthouse CI**             | Local script available: `pnpm -F @battleship/web lighthouse` (see `README.md`). Automated runs on every PR are not wired up yet — no pipeline exists.                                                                         | —      |
 | **Image optimisation policy** | Enforced by `@next/next/no-img-element` (included in `eslint-config-next/core-web-vitals`). Any raw `<img>` tag is a lint error. No raster images yet — policy is ready for when they are added.                              | —      |
 | **Code-splitting audit**      | Theme CSS files (`dark.css`, `christmas.css`) are statically imported but each is ~590 bytes — negligible overhead. Dynamic import adds more JS complexity than it saves at this scale. Revisit if themes grow significantly. | —      |
+
+---
+
+## Testing
+
+| Topic                          | MVP state                                                                                                                                                                                                                                                                      | Detail                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| **WS load tests**              | No `k6` or equivalent load harness. The hub's behaviour under concurrent connections is covered by unit tests but not benchmarked at scale.                                                                                                                                    | [SOLUTION-2.md § Known Gaps](./SOLUTION-2.md#7-known-gaps--follow-ons) |
+| **Contract tests (REST + WS)** | Protocol shape is validated by `parseClientMessage` / `sanitizeGameStateFor` unit tests and `handlers.test.ts` integration tests. A separate `protocol.test-d.ts` TypeScript declaration test file is not included; the existing suite covers all message kinds behaviourally. | [SOLUTION-2.md](./SOLUTION-2.md)                                       |
+| **Mutation testing**           | Line and branch coverage is high (≥ 95% for core, ≥ 90% for web) but no `stryker` run verifies that tests actually constrain behaviour.                                                                                                                                        | —                                                                      |
 
 ---
 

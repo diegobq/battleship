@@ -42,15 +42,19 @@ describe("handleApiError", () => {
   });
 
   it("returns 500 INTERNAL for unexpected errors", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = handleApiError(
       new Error("boom"),
     ) as unknown as MockJsonResponse;
     expect(res.status).toBe(500);
     expect(res.body.error.code).toBe("INTERNAL");
+    errorSpy.mockRestore();
   });
 
   it("returns 500 INTERNAL for non-Error thrown values", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = handleApiError("string error") as unknown as MockJsonResponse;
     expect(res.status).toBe(500);
+    errorSpy.mockRestore();
   });
 });

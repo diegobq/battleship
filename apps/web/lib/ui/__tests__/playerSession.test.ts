@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { setPlayerId, getPlayerId, clearPlayerId } from "../playerSession";
+import { renderHook } from "@testing-library/react";
+import {
+  setPlayerId,
+  getPlayerId,
+  clearPlayerId,
+  usePlayerId,
+} from "../playerSession";
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -38,5 +44,18 @@ describe("clearPlayerId", () => {
 
   it("is a no-op when nothing is stored for that gameId", () => {
     expect(() => clearPlayerId("nothing")).not.toThrow();
+  });
+});
+
+describe("usePlayerId", () => {
+  it("returns the stored playerId for a game", () => {
+    setPlayerId("g1", "p123");
+    const { result } = renderHook(() => usePlayerId("g1"));
+    expect(result.current).toBe("p123");
+  });
+
+  it("returns null when no playerId is stored for a game", () => {
+    const { result } = renderHook(() => usePlayerId("unknown"));
+    expect(result.current).toBeNull();
   });
 });

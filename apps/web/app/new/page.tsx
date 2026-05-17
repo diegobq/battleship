@@ -175,7 +175,7 @@ export default function NewGamePage() {
           className="rounded px-5 py-3 font-semibold disabled:opacity-50"
           style={{
             background: "var(--brand-primary)",
-            color: "var(--surface-fg)",
+            color: "var(--surface-bg)",
           }}
         >
           {busy ? "Creating…" : "Create game"}
