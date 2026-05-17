@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { PlayerState } from "@battleship/core";
 import { useGame } from "@/lib/ui/GameProvider";
@@ -12,18 +12,28 @@ import MultiplierBadge from "../Hud/MultiplierBadge";
 import ScorePanel from "../Hud/ScorePanel";
 import TurnTimer from "../Hud/TurnTimer";
 import { LiveRegion } from "../ui/LiveRegion";
+import { SfxToggle } from "../ui/SfxToggle";
 
 export default function PlayView() {
   const { state, playerId, lastShot, shoot, leaveGame } = useGame();
   const sentences = useShotAnnouncement(lastShot, playerId);
-  const { onShot } = useShotFeedback();
+  const { onShot, onTurnStart } = useShotFeedback();
   const { pending, addPending, reconcile } = useOptimisticShots();
+  const prevActiveIdRef = useRef<string | undefined>(undefined);
+  const activePlayerId = state?.activePlayerId ?? undefined;
 
   useEffect(() => {
     if (!lastShot) return;
     onShot({ hit: lastShot.hit, sunk: !!lastShot.sunkShipType });
     reconcile(lastShot.r, lastShot.c);
   }, [lastShot, onShot, reconcile]);
+
+  useEffect(() => {
+    if (prevActiveIdRef.current !== undefined && activePlayerId === playerId) {
+      onTurnStart();
+    }
+    prevActiveIdRef.current = activePlayerId;
+  }, [activePlayerId, playerId, onTurnStart]);
 
   if (!state) return <p className="p-4">Loading…</p>;
   const me = state.players[playerId];
@@ -54,17 +64,20 @@ export default function PlayView() {
           consecutiveHits={me.consecutiveHits}
           eliteConfig={state.config.elite}
         />
-        <Link
-          href="/"
-          onClick={finished ? undefined : leaveGame}
-          className="rounded px-3 py-2 text-sm ml-auto"
-          style={{
-            background: "var(--surface-muted)",
-            color: "var(--brand-danger)",
-          }}
-        >
-          {finished ? "Back to lobby" : "Leave game"}
-        </Link>
+        <div className="ml-auto flex gap-2 items-center">
+          <SfxToggle />
+          <Link
+            href="/"
+            onClick={finished ? undefined : leaveGame}
+            className="rounded px-3 py-2 text-sm"
+            style={{
+              background: "var(--surface-muted)",
+              color: "var(--brand-danger)",
+            }}
+          >
+            {finished ? "Back to lobby" : "Leave game"}
+          </Link>
+        </div>
       </div>
       <GameResultBanner finished={finished} iWon={iWon} />
       <BoardsSection
