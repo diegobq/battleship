@@ -25,7 +25,7 @@ This document records the design rationale behind the Battleship implementation 
 - [Screen-Reader Announcements](#screen-reader-announcements)
 - [Theme Switcher](#theme-switcher)
 - [Safe-Area Insets](#safe-area-insets)
-- [Haptic Feedback](#haptic-feedback)
+- [Audio & Haptic Feedback](#shot-feedback-audio--haptics)
 - [Optimistic Shot Feedback](#optimistic-shot-feedback)
 - [Test Strategy](#test-strategy)
 - [Error Boundaries](#error-boundaries)
@@ -484,9 +484,11 @@ Module-scoped subscribable store with imperative API (`toast.error`, `toast.info
 
 ---
 
-## Haptic Feedback
+## Audio & Haptic Feedback
 
-Optional chaining on `navigator.vibrate?.()` silently no-ops on unsupported browsers. Haptics and audio share the same `localStorage["bs-sfx"]` preference key so one toggle controls both. See [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md).
+Audio is synthesised at runtime via the Web Audio API (`AudioContext` + `OscillatorNode` + `GainNode`) — no static OGG files, works offline, no per-shot HTTP request. Three tones cover shot outcomes (880 Hz hit, 220 Hz miss, 660 Hz sunk); a fourth 1047 Hz tone fires on turn start via `onTurnStart`, called from a `useRef`-guarded `useEffect` in `PlayView` that skips the initial mount. Haptics use `navigator.vibrate?.()` (optional chaining silently no-ops on unsupported browsers) with the same `useShotFeedback` hook controlling both channels.
+
+The preference defaults to **off** and is stored in `sessionStorage["bs-sfx"]` so two players in the same browser origin have independent mute state per tab. A `🔊 / 🔇` toggle (`SfxToggle`) in the PlayView HUD writes `"on"` / removes the key; `useSfx` mirrors the `useTheme` pattern (`useReducer` + `useEffect`) to avoid calling `setState` inside the effect body.
 
 ---
 

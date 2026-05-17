@@ -93,17 +93,6 @@
 
 ---
 
-## Frontend UX
-
-> See [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md) for the design system (tokens, primitives, hooks) that covers this section. See `SOLUTION-1.md` for implementation rationale per item.
-
-- **Sound cues** — **P2**
-  - Gap: `useShotFeedback` plays OGG audio via `HTMLAudioElement` and the hook is wired into `PlayView`, but the audio asset files (`public/sounds/hit.ogg`, `miss.ogg`, `sunk.ogg`) have not been added and there is no UI toggle for the `bs-sfx` preference key.
-  - Impact: the hook silently no-ops on every shot; the feature is invisible to users until assets ship.
-  - Approach: add three short OGG samples under `apps/web/public/sounds/`; add a mute toggle (e.g. a speaker icon button in the HUD) that writes `localStorage["bs-sfx"] = "off"`.
-
----
-
 ## SEO & Discoverability
 
 - **OpenGraph & Twitter cards** — **P1**
@@ -313,4 +302,4 @@
 
 - **P0 (must-have before public launch):** structured logging, error tracking, graceful shutdown, signed sessions, rate limiting, security headers, dependency audit in CI, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
 - **P1 (polished v1):** CSRF, input normalisation, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, Prettier + Husky, semver, ToS, accessibility tests, WS load tests, runbook.
-- **P2 (future):** idempotent retries, sound cues (assets + toggle UI), service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, commitlint, CHANGELOG, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
+- **P2 (future):** idempotent retries, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, commitlint, CHANGELOG, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
