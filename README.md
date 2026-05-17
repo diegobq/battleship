@@ -90,4 +90,4 @@ Report is written to `apps/web/.lighthouse/report.html`.
 
 ## Production Readiness
 
-A catalogue of gaps outside the assessment scope (i18n, observability, security headers, CI/CD, etc.) with priorities and recommended approaches: [PRODUCTION-CHECKLIST.md](PRODUCTION-CHECKLIST.md).
+Intentional gaps outside the assessment scope (i18n, observability, security headers, CI/CD, etc.) are documented with their trade-off rationale in [MVP-SCOPE.md](MVP-SCOPE.md).

@@ -18,7 +18,6 @@
 - [Code Quality](#code-quality)
 - [Design System Tooling](#design-system-tooling)
 - [Performance](#performance)
-- [Testing](#testing)
 - [Documentation](#documentation)
 - [Legal & Compliance](#legal--compliance)
 
@@ -115,14 +114,6 @@
 | **Lighthouse CI**             | Local script available: `pnpm -F @battleship/web lighthouse` (see `README.md`). Automated runs on every PR are not wired up yet — no pipeline exists.                                                                         | —      |
 | **Image optimisation policy** | Enforced by `@next/next/no-img-element` (included in `eslint-config-next/core-web-vitals`). Any raw `<img>` tag is a lint error. No raster images yet — policy is ready for when they are added.                              | —      |
 | **Code-splitting audit**      | Theme CSS files (`dark.css`, `christmas.css`) are statically imported but each is ~590 bytes — negligible overhead. Dynamic import adds more JS complexity than it saves at this scale. Revisit if themes grow significantly. | —      |
-
----
-
-## Testing
-
-| Topic                | MVP state                                                                                                                               | Detail |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| **Mutation testing** | Line and branch coverage is high (≥ 95% for core, ≥ 90% for web) but no `stryker` run verifies that tests actually constrain behaviour. | —      |
 
 ---
 
