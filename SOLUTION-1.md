@@ -34,6 +34,8 @@ This document records the design rationale behind the Battleship implementation 
 - [Security Headers](#security-headers)
 - [Input Sanitisation](#input-sanitisation)
 - [Environment Schema](#environment-schema)
+- [SEO & Discoverability](#seo--discoverability)
+- [PWA Manifest & Icons](#pwa-manifest--icons)
 - [Health & Readiness Probes](#health--readiness-probes-p0)
 - [Verification](#verification)
 
@@ -640,6 +642,47 @@ ALLOWED_ORIGINS string (optional)                       comma-separated origin l
 `server.ts` and `lib/api/session-token.ts` import from `lib/env.ts` instead of reading `process.env` directly; `process.env` references were removed from those files entirely.
 
 The companion `.env.example` at the repo root documents every supported variable with a comment.
+
+---
+
+## SEO & Discoverability
+
+Three layers of SEO infrastructure are implemented:
+
+**OpenGraph & Twitter cards** — `apps/web/app/layout.tsx` now exports a full `metadata` object with `openGraph` (type, title template, description, siteName) and `twitter.card: "summary_large_image"`. A 1200×630 OG image is generated at build time by `apps/web/app/opengraph-image.tsx` using `next/og`'s `ImageResponse` — no static image asset required. Next.js's file-convention automatically injects the generated URL into the root `<head>` and all child routes.
+
+**Per-route title template** — the root metadata uses `title: { default: "Battleship", template: "%s — Battleship" }`. Child route pages export only their segment title (e.g. `title: "New Game"`) and Next.js composes the full string automatically. This pattern keeps per-route metadata minimal:
+
+- `app/new/layout.tsx` — "New Game — Battleship"
+- `app/(protected)/game/[gameId]/page.tsx` — "Game — Battleship"
+
+A layout (`app/new/layout.tsx`) is used for `/new` rather than a direct export from `page.tsx` because `page.tsx` is a `"use client"` component; `metadata` exports are only valid in Server Components.
+
+**robots.txt & sitemap.xml** — `app/robots.ts` and `app/sitemap.ts` implement the Next.js file-convention route handlers. Both read `APP_URL` from the typed `env` object (with `http://localhost:3000` as a development fallback). Only the public marketing routes (`/`, `/new`) are listed in the sitemap; protected game routes are excluded.
+
+---
+
+## PWA Manifest & Icons
+
+`apps/web/app/manifest.ts` exposes `/manifest.webmanifest` via the Next.js file convention and returns:
+
+| Field              | Value                                                              |
+| ------------------ | ------------------------------------------------------------------ |
+| `name`             | "Battleship"                                                       |
+| `short_name`       | "Battleship"                                                       |
+| `display`          | "standalone" — launches without browser chrome                     |
+| `background_color` | `#0f172a` — matches the app's dark surface, suppresses white flash |
+| `theme_color`      | `#0f172a` — colours the mobile status bar / title bar              |
+| `start_url`        | `/` — opens to the lobby                                           |
+
+**Icons** are SVG files in `public/icons/`:
+
+- `icon.svg` — `purpose: "any"`, rounded-corner variant, served at any size via `sizes: "any"`
+- `icon-maskable.svg` — `purpose: "maskable"`, full-bleed background with letter centred within the 80 % safe zone, so adaptive icon masks (circle, squircle) never clip the "B"
+
+SVG was chosen over rasterised PNGs because: no build-time image-processing dependency is needed, the files are tiny and version-control friendly, and the Web App Manifest spec explicitly allows SVG. When brand assets mature, the SVG can be swapped for PNG entries without touching `manifest.ts`.
+
+`app/icon.tsx` generates the 32×32 browser-tab favicon via `next/og` `ImageResponse`, following the same pattern as `opengraph-image.tsx`. Next.js automatically injects `<link rel="icon">` into `<head>` for every route.
 
 ---
 

@@ -17,8 +17,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Battleship",
-  description: "Real-time online Battleship — ASSE assessment build.",
+  title: {
+    default: "Battleship",
+    template: "%s — Battleship",
+  },
+  description:
+    "Real-time online PvP Battleship. Challenge a friend to a match of strategy and skill.",
+  openGraph: {
+    type: "website",
+    siteName: "Battleship",
+    title: {
+      default: "Battleship",
+      template: "%s — Battleship",
+    },
+    description:
+      "Real-time online PvP Battleship. Challenge a friend to a match of strategy and skill.",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 export const viewport: Viewport = {

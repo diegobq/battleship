@@ -15,7 +15,6 @@
 ## Table of contents
 
 - [Reliability](#reliability)
-- [SEO & Discoverability](#seo--discoverability)
 - [PWA & Mobile](#pwa--mobile)
 - [Performance](#performance)
 - [Testing Maturity](#testing-maturity)
@@ -38,31 +37,7 @@
 
 ---
 
-## SEO & Discoverability
-
-- **OpenGraph & Twitter cards** — **P1**
-  - Gap: `apps/web/app/layout.tsx` exports only basic `metadata`. No `openGraph`, no `twitter`.
-  - Impact: shared links render as plain URLs on Slack / WhatsApp / Twitter.
-  - Approach: extend `metadata` with `openGraph.images` (1200×630), `twitter.card: 'summary_large_image'`. Add an `app/opengraph-image.tsx` for dynamic per-route images.
-
-- **robots.txt & sitemap.xml** — **P1**
-  - Gap: neither exists.
-  - Impact: search engines cannot index the marketing surface.
-  - Approach: `apps/web/app/robots.ts` and `apps/web/app/sitemap.ts` (Next.js conventions).
-
-- **Per-route metadata** — **P1**
-  - Gap: every route inherits the root `<title>`.
-  - Impact: every tab reads "Battleship".
-  - Approach: export `metadata` (or `generateMetadata`) from `app/game/[id]/page.tsx` and `app/new/page.tsx`.
-
----
-
 ## PWA & Mobile
-
-- **`manifest.webmanifest`** — **P1**
-  - Gap: `apps/web/public/` ships only the stock Next.js SVGs; no manifest, no app icons.
-  - Impact: cannot be added to home screen; required for Web App Store publication (CLAUDE.md objective).
-  - Approach: `apps/web/app/manifest.ts` + a 512×512 icon set (`/icons/icon-{192,512,maskable}.png`).
 
 - **Service worker / offline shell** — **P2**
   - Gap: no SW.
@@ -160,5 +135,5 @@
 ## Summary by priority
 
 - **P0 (must-have before public launch):** graceful shutdown.
-- **P1 (polished v1):** OpenGraph + sitemap, per-route metadata, manifest.webmanifest, bundle analyzer + Lighthouse CI, accessibility tests, WS load tests, runbook.
+- **P1 (polished v1):** bundle analyzer + Lighthouse CI, accessibility tests, WS load tests, runbook.
 - **P2 (future):** idempotent retries, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.

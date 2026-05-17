@@ -74,9 +74,10 @@
 
 ## Features
 
-| Topic                    | MVP state                                                        | Detail                                                                          |
-| ------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| **PWA / installability** | No `manifest.webmanifest`, no service worker, no install prompt. | [PRODUCTION-CHECKLIST.md § PWA & Mobile](./PRODUCTION-CHECKLIST.md#pwa--mobile) |
+| Topic                 | MVP state                                                             | Detail                                                                          |
+| --------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **Service worker**    | No SW. Cold start on flaky mobile networks; no offline lobby caching. | [PRODUCTION-CHECKLIST.md § PWA & Mobile](./PRODUCTION-CHECKLIST.md#pwa--mobile) |
+| **Install prompt UX** | `beforeinstallprompt` is not handled; no "Add to Home Screen" nudge.  | [PRODUCTION-CHECKLIST.md § PWA & Mobile](./PRODUCTION-CHECKLIST.md#pwa--mobile) |
 
 ---
 

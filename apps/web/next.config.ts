@@ -6,9 +6,11 @@ const isDev = process.env.NODE_ENV !== "production";
 // script-src requires 'unsafe-inline' because Next.js injects inline bootstrap
 // scripts for hydration. The production-grade fix is nonce-based CSP via
 // Next.js middleware, which is a follow-up hardening step.
+// 'unsafe-eval' is added in development only — React uses eval() for call-stack
+// reconstruction in dev mode but never in production.
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "connect-src 'self' wss: ws:",
   "img-src 'self' data:",

@@ -8,6 +8,7 @@ const envSchema = z.object({
   HOSTNAME: z.string().default("localhost"),
   SESSION_SECRET: z.string().optional(),
   ALLOWED_ORIGINS: z.string().optional(),
+  APP_URL: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

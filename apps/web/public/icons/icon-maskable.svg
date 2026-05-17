@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed background required for maskable icons -->
+  <rect width="512" height="512" fill="#0f172a"/>
+
+  <!-- Content within 80 % safe zone (x 51–461, y 51–461) -->
+
+  <!-- Hull -->
+  <path d="M 88 352 L 122 318 L 400 318 L 430 352 L 418 394 L 96 394 Z" fill="#94a3b8"/>
+
+  <!-- Forward gun barrel (tip at x=68, within safe zone) -->
+  <rect x="68" y="305" width="92" height="14" rx="5" fill="#cbd5e1"/>
+
+  <!-- Aft gun barrel (tip at x=444, within safe zone) -->
+  <rect x="352" y="305" width="92" height="14" rx="5" fill="#cbd5e1"/>
+
+  <!-- Superstructure -->
+  <rect x="178" y="250" width="160" height="68" rx="6" fill="#cbd5e1"/>
+
+  <!-- Bridge -->
+  <rect x="220" y="194" width="76" height="56" rx="6" fill="#e2e8f0"/>
+
+  <!-- Mast -->
+  <rect x="253" y="112" width="8" height="82" rx="3" fill="#f1f5f9"/>
+</svg>
