@@ -144,6 +144,16 @@ No other internal module is mocked. Specifically, `processShot`, `handleTurnTime
 
 Every `it()` block constructs its own state using public factory functions (`createGame`, `addSecondPlayer`, `placeFleet`, `buildPlayingScenario()`). Singleton modules (`GameRegistry`, `WebSocketHub`, `LobbyEmitter`) are reset in `beforeEach` via their `__reset*ForTests()` helpers. No test relies on state left by a previous test.
 
+### Contract testing — REST and WebSocket protocol shapes
+
+The contract between the server and its callers is enforced at two layers.
+
+**REST (dto.ts / `api/__tests__/dto.test.ts`):** `parseCreateGameRequest` and `parseJoinGameRequest` are the single entry points for inbound REST payloads. Every field constraint — required strings, mode enum membership, fleet type keys, integer ranges for `turnTimerMs` — is exercised with both valid and invalid inputs. An `ApiError` with an explicit HTTP status is thrown for any violation; `dto.test.ts` pins the status code and `code` string for each error class so a renaming accident fails immediately.
+
+**WebSocket (protocol.ts / `server/__tests__/protocol.test.ts`):** `parseClientMessage` is the single entry point for inbound WS frames. Tests cover every message kind (`PING`, `LEAVE_GAME`, `SHOOT`, `PLACE_FLEET`) plus every documented rejection path (malformed JSON, missing `type`, unknown `type`, non-integer coordinates, invalid orientation). `sanitizeGameStateFor` tests ensure the information-hiding contract — opponent ship positions are redacted until the ship is sunk — cannot silently regress.
+
+A separate `protocol.test-d.ts` TypeScript declaration test is not included because Vitest's `expectTypeOf` tests would duplicate what the compiler already enforces through the `ClientMessage` and `ServerMessage` discriminated unions; the behavioural tests in `protocol.test.ts` provide stronger guarantees than type assertions alone.
+
 ### No redundant tests
 
 A test exists because it pins a specific invariant or edge case that would be silently broken by a code change. For example, `game.test.ts` tests `processShot` with a floor-at-zero scenario to confirm the floor is applied at the game layer (not scoring layer). This is not redundant with `scoring.test.ts`'s miss penalty test — the two tests pin different layers of the system.
@@ -219,7 +229,7 @@ Automating this functional scenario with Playwright is the next step after the c
 
 ### Load and mutation testing
 
-WebSocket load testing (`k6`) and mutation testing (`stryker`) are intentionally deferred. The former is an infrastructure concern that requires a live deployment target; the latter is a quality-signal audit that adds value once the baseline test suite stabilises. Both are tracked in [MVP-SCOPE.md § Testing](./MVP-SCOPE.md#testing).
+WebSocket load testing (`k6`) and mutation testing (`stryker`) are intentionally deferred. The former is an infrastructure concern that requires a live deployment target; the latter is a quality-signal audit that adds value once the baseline test suite stabilises.
 
 ### CI pipeline
 

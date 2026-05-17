@@ -120,11 +120,9 @@
 
 ## Testing
 
-| Topic                          | MVP state                                                                                                                                                                                                                                                                      | Detail                                                                 |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| **WS load tests**              | No `k6` or equivalent load harness. The hub's behaviour under concurrent connections is covered by unit tests but not benchmarked at scale.                                                                                                                                    | [SOLUTION-2.md § Known Gaps](./SOLUTION-2.md#7-known-gaps--follow-ons) |
-| **Contract tests (REST + WS)** | Protocol shape is validated by `parseClientMessage` / `sanitizeGameStateFor` unit tests and `handlers.test.ts` integration tests. A separate `protocol.test-d.ts` TypeScript declaration test file is not included; the existing suite covers all message kinds behaviourally. | [SOLUTION-2.md](./SOLUTION-2.md)                                       |
-| **Mutation testing**           | Line and branch coverage is high (≥ 95% for core, ≥ 90% for web) but no `stryker` run verifies that tests actually constrain behaviour.                                                                                                                                        | —                                                                      |
+| Topic                | MVP state                                                                                                                               | Detail |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **Mutation testing** | Line and branch coverage is high (≥ 95% for core, ≥ 90% for web) but no `stryker` run verifies that tests actually constrain behaviour. | —      |
 
 ---
 
