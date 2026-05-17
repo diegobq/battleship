@@ -31,6 +31,7 @@ This document records the design rationale behind the Battleship implementation 
 - [Error Boundaries](#error-boundaries)
 - [Signed Player Sessions](#signed-player-sessions) (REST · WebSocket · Route Guard)
 - [Rate Limiting](#rate-limiting)
+- [Security Headers](#security-headers)
 - [Health & Readiness Probes](#health--readiness-probes-p0)
 - [Verification](#verification)
 
@@ -573,6 +574,27 @@ Rate limiting is enforced at the WebSocket layer and delegated to the reverse pr
 **WebSocket — per-connection sliding window.** Each accepted connection gets its own `MessageRateLimiter` instance (created by `createMessageRateLimiter` in `lib/api/rate-limiter.ts`). The limiter tracks a message count within a 1-second window; once the count exceeds 10, the connection is closed with code 4029 ("Too Many Requests") before the message is processed. The limit fires early — before any deserialization or game-state mutation — so a flood cannot exhaust the registry or CPU. The limiter is a plain closure with no external state, making it trivially testable and zero-dependency.
 
 **REST — proxy layer.** The current REST endpoints (`POST /create`, `POST /join`) are pre-auth by design and have no `playerId` to key a per-player bucket against. Per-IP limiting is the appropriate countermeasure but belongs at the reverse proxy (Nginx `limit_req`, Fly.io rate-limit middleware) rather than application code — proxy-level limits apply before the Node process is reached and survive horizontal scaling. Once authenticated REST endpoints exist, the `withAuth` wrapper documented in the Signed Player Sessions section is the right place to add per-`playerId` throttling.
+
+---
+
+## Security Headers
+
+`apps/web/next.config.ts` now exports a `headers()` function that attaches security headers to every response (`source: "/(.*)"`) via the Next.js built-in header injection:
+
+| Header | Value | Purpose |
+|---|---|---|
+| `X-Frame-Options` | `DENY` | Clickjacking prevention (legacy browsers) |
+| `X-Content-Type-Options` | `nosniff` | MIME-type sniffing prevention |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Limits referrer leakage on cross-origin navigation |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Disables browser features the game does not use |
+| `Content-Security-Policy` | see below | XSS containment |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Forces HTTPS for 2 years (production only) |
+
+**CSP policy:** `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss: ws:; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`
+
+`script-src` requires `'unsafe-inline'` because Next.js injects inline bootstrap scripts for hydration. This is the known trade-off with Next.js App Router and static CSP headers. The production-grade resolution is a **nonce-based CSP** implemented via Next.js `middleware.ts`: the middleware generates a per-request nonce, injects it into the CSP header, and passes it to `next/headers` for server components to forward to `<Script>` tags. That is a follow-up hardening step beyond the MVP scope.
+
+HSTS is omitted in development to avoid locking localhost to HTTPS.
 
 ---
 
