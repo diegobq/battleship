@@ -45,11 +45,6 @@
 
 ## Security
 
-- **Rate limiting** — **P0**
-  - Gap: no throttling on REST or WS. A malicious client can flood `SHOOT` messages.
-  - Impact: trivial DoS; potential to exhaust the in-memory registry.
-  - Approach: token-bucket per `playerId` (e.g. 5 req/s burst, 1 req/s sustained) on REST; per-connection message-rate limit on WS (drop > 10 msg/s).
-
 - **Security headers (CSP, HSTS, X-Frame, Referrer-Policy)** — **P0**
   - Gap: `apps/web/next.config.ts` has no `headers()` block.
   - Impact: XSS reach is unconstrained; clickjacking possible.
@@ -250,6 +245,6 @@
 
 ## Summary by priority
 
-- **P0 (must-have before public launch):** graceful shutdown, rate limiting, security headers, dependency audit in CI, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
+- **P0 (must-have before public launch):** graceful shutdown, security headers, dependency audit in CI, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
 - **P1 (polished v1):** input normalisation, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, ToS, accessibility tests, WS load tests, runbook.
 - **P2 (future):** idempotent retries, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.

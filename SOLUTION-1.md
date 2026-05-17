@@ -30,6 +30,7 @@ This document records the design rationale behind the Battleship implementation 
 - [Test Strategy](#test-strategy)
 - [Error Boundaries](#error-boundaries)
 - [Signed Player Sessions](#signed-player-sessions) (REST · WebSocket · Route Guard)
+- [Rate Limiting](#rate-limiting)
 - [Health & Readiness Probes](#health--readiness-probes-p0)
 - [Verification](#verification)
 
@@ -562,6 +563,16 @@ The custom Node server (`apps/web/server.ts`) is the single enforcement point fo
 ### Route guard — `(protected)` layout
 
 All routes that require an active session live under `app/(protected)/`. The route group adds no segments to the URL — `/game/abc` stays `/game/abc`. The `layout.tsx` is a Next.js server component: it reads `battleship_session_{gameId}` from the incoming request via `cookies()` from `next/headers` and calls `redirect("/")` before the page renders if the cookie is absent. This produces a clean server-side redirect with no hydration flash. The layout is a UX guard (fast redirect for users with no session); the cryptographic security boundary remains the WS connection check in `server.ts`.
+
+---
+
+## Rate Limiting
+
+Rate limiting is enforced at the WebSocket layer and delegated to the reverse proxy for REST.
+
+**WebSocket — per-connection sliding window.** Each accepted connection gets its own `MessageRateLimiter` instance (created by `createMessageRateLimiter` in `lib/api/rate-limiter.ts`). The limiter tracks a message count within a 1-second window; once the count exceeds 10, the connection is closed with code 4029 ("Too Many Requests") before the message is processed. The limit fires early — before any deserialization or game-state mutation — so a flood cannot exhaust the registry or CPU. The limiter is a plain closure with no external state, making it trivially testable and zero-dependency.
+
+**REST — proxy layer.** The current REST endpoints (`POST /create`, `POST /join`) are pre-auth by design and have no `playerId` to key a per-player bucket against. Per-IP limiting is the appropriate countermeasure but belongs at the reverse proxy (Nginx `limit_req`, Fly.io rate-limit middleware) rather than application code — proxy-level limits apply before the Node process is reached and survive horizontal scaling. Once authenticated REST endpoints exist, the `withAuth` wrapper documented in the Signed Player Sessions section is the right place to add per-`playerId` throttling.
 
 ---
 

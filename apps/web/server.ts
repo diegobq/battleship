@@ -15,6 +15,7 @@ import {
   getSessionSecret,
   extractTokenFromCookies,
 } from "./lib/api/session-token";
+import { createMessageRateLimiter } from "./lib/api/rate-limiter";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOSTNAME = process.env.HOSTNAME ?? "localhost";
@@ -104,7 +105,13 @@ function onWsConnection(
   deps.hub.register(gameId, playerId, ws);
   deps.hub.broadcastState(gameId, game);
 
+  const rateLimiter = createMessageRateLimiter(10, 1_000);
+
   ws.on("message", (raw: Buffer | ArrayBuffer | Buffer[]) => {
+    if (!rateLimiter.check()) {
+      ws.close(4029, "Rate limit exceeded.");
+      return;
+    }
     try {
       const text = Buffer.isBuffer(raw) ? raw.toString("utf8") : raw.toString();
       const msg = parseClientMessage(text);
