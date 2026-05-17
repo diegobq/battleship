@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { env } from "../env";
 
 function buildPayload(playerId: string, gameId: string): string {
   return `${playerId}:${gameId}`;
@@ -35,10 +36,8 @@ export function verifyToken(
 }
 
 export function getSessionSecret(): string {
-  const secret = process.env.SESSION_SECRET;
-  if (secret) return secret;
-  if (process.env.NODE_ENV !== "production")
-    return "dev-only-secret-change-in-prod";
+  if (env.SESSION_SECRET) return env.SESSION_SECRET;
+  if (env.NODE_ENV !== "production") return "dev-only-secret-change-in-prod";
   throw new Error(
     "SESSION_SECRET environment variable must be set in production",
   );

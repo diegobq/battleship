@@ -16,14 +16,13 @@ import {
   extractTokenFromCookies,
 } from "./lib/api/session-token";
 import { createMessageRateLimiter } from "./lib/api/rate-limiter";
+import { env } from "./lib/env";
 
-const PORT = Number(process.env.PORT ?? 3000);
-const HOSTNAME = process.env.HOSTNAME ?? "localhost";
 const WS_PATH = "/api/game/stream";
-const dev = process.env.NODE_ENV !== "production";
+const dev = env.NODE_ENV !== "production";
 
 function isOriginAllowed(origin: string | undefined): boolean {
-  const raw = process.env.ALLOWED_ORIGINS ?? "";
+  const raw = env.ALLOWED_ORIGINS ?? "";
   if (dev && !raw) return true; // allow all in development when not explicitly configured
   return raw
     .split(",")
@@ -34,7 +33,7 @@ function isOriginAllowed(origin: string | undefined): boolean {
 
 async function start(): Promise<void> {
   const sessionSecret = getSessionSecret();
-  const app = next({ dev, hostname: HOSTNAME, port: PORT });
+  const app = next({ dev, hostname: env.HOSTNAME, port: env.PORT });
   await app.prepare();
   const nextHandler = app.getRequestHandler();
 
@@ -68,8 +67,10 @@ async function start(): Promise<void> {
     },
   );
 
-  httpServer.listen(PORT, () => {
-    console.log(`> Battleship server ready on http://${HOSTNAME}:${PORT}`);
+  httpServer.listen(env.PORT, () => {
+    console.log(
+      `> Battleship server ready on http://${env.HOSTNAME}:${env.PORT}`,
+    );
   });
 }
 

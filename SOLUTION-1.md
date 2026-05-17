@@ -33,6 +33,7 @@ This document records the design rationale behind the Battleship implementation 
 - [Rate Limiting](#rate-limiting)
 - [Security Headers](#security-headers)
 - [Input Sanitisation](#input-sanitisation)
+- [Environment Schema](#environment-schema)
 - [Health & Readiness Probes](#health--readiness-probes-p0)
 - [Verification](#verification)
 
@@ -616,6 +617,29 @@ Player-supplied strings (names, game names) pass through two sanitisation layers
 Both transformations happen before the length check, so the 32-character cap is enforced against the _rendered_ name rather than the raw input. A name that normalises to an empty string is rejected with the same 400 error as a missing field.
 
 `parseOptionalString` (used for `gameName`) intentionally does **not** apply sanitisation — optional cosmetic strings are either accepted as-is or silently discarded; they are never compared for identity, so homograph attacks have no surface area there.
+
+---
+
+## Environment Schema
+
+`apps/web/lib/env.ts` is the single place where environment variables are read and validated. It exposes two exports:
+
+- **`parseEnv(raw?)`** — a pure function that accepts a `NodeJS.ProcessEnv`-shaped object (defaults to `process.env`) and returns a typed `Env` object. Useful for tests.
+- **`env`** — the singleton, evaluated once at module load; any mis-configuration throws immediately with a human-readable message listing every failing field.
+
+```
+NODE_ENV       "development" | "production" | "test"   default: "development"
+PORT           integer 1–65535                          default: 3000
+HOSTNAME       string                                   default: "localhost"
+SESSION_SECRET string (optional)                        required at runtime by getSessionSecret() in production
+ALLOWED_ORIGINS string (optional)                       comma-separated origin list for WS upgrades
+```
+
+`PORT` is declared as `z.coerce.number()` so the string `"4000"` from the OS environment coerces cleanly to `4000`. All other vars remain strings.
+
+`server.ts` and `lib/api/session-token.ts` import from `lib/env.ts` instead of reading `process.env` directly; `process.env` references were removed from those files entirely.
+
+The companion `.env.example` at the repo root documents every supported variable with a comment.
 
 ---
 
