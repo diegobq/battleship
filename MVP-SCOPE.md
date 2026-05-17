@@ -15,6 +15,7 @@
 - [Security](#security)
 - [Infrastructure & Scaling](#infrastructure--scaling)
 - [Features](#features)
+- [Code Quality](#code-quality)
 - [Design System Tooling](#design-system-tooling)
 - [Legal & Compliance](#legal--compliance)
 
@@ -73,11 +74,20 @@
 
 ## Features
 
-| Topic                    | MVP state                                                                                                                  | Detail                                                                          |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| **Sound cues**           | `useShotFeedback` is wired and the hook runs, but `public/sounds/*.ogg` files are not shipped and there is no mute toggle. | [PRODUCTION-CHECKLIST.md § Frontend UX](./PRODUCTION-CHECKLIST.md#frontend-ux)  |
-| **PWA / installability** | No `manifest.webmanifest`, no service worker, no install prompt.                                                           | [PRODUCTION-CHECKLIST.md § PWA & Mobile](./PRODUCTION-CHECKLIST.md#pwa--mobile) |
-| **Spectator mode**       | Design documented; not implemented.                                                                                        | [SOLUTION-4.md](./SOLUTION-4.md)                                                |
+| Topic                    | MVP state                                                        | Detail                                                                          |
+| ------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **PWA / installability** | No `manifest.webmanifest`, no service worker, no install prompt. | [PRODUCTION-CHECKLIST.md § PWA & Mobile](./PRODUCTION-CHECKLIST.md#pwa--mobile) |
+
+---
+
+## Code Quality
+
+| Topic                   | MVP state                                                                                        | Detail                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| **Husky + lint-staged** | No pre-commit hooks. Quality gates run manually and in CI instead of enforcing fixes pre-commit. | —                                                                                  |
+| **Commitlint**          | Commit naming follows repo guidance socially; no automated enforcement is configured.            | —                                                                                  |
+| **CHANGELOG**           | No generated changelog yet; release communication remains informal at MVP stage.                 | —                                                                                  |
+| **Versioning**          | Package version stays at `0.0.0`; formal semver is deferred until there is a public release cut. | [PRODUCTION-CHECKLIST.md § DevOps & CI/CD](./PRODUCTION-CHECKLIST.md#devops--cicd) |
 
 ---
 
