@@ -14,19 +14,8 @@
 
 ## Table of contents
 
-- [Reliability](#reliability)
 - [Performance](#performance)
 - [Testing Maturity](#testing-maturity)
-- [Documentation](#documentation)
-
----
-
-## Reliability
-
-- **Idempotent client retries** — **P2**
-  - Gap: `POST /api/game/create` and `/join` are not idempotent; a double-click could create two games.
-  - Impact: lobby noise; orphan games.
-  - Approach: accept an `Idempotency-Key` header; cache the response for 5 min.
 
 ---
 
@@ -78,27 +67,7 @@
 
 ---
 
-## Documentation
-
-- **API reference (TypeDoc)** — **P2**
-  - Gap: no generated API docs.
-  - Impact: onboarding new contributors is slower.
-  - Approach: TypeDoc HTML output published to GitHub Pages on tag.
-
-- **Runbook** — **P1**
-  - Gap: no `docs/RUNBOOK.md` for incidents.
-  - Impact: on-call has nothing to reach for at 03:00.
-  - Approach: short doc covering: "WS connections dropping", "Game stuck in placement", "Fly machine OOM", with the metrics dashboards linked.
-
-- **Contributor onboarding** — **P2**
-  - Gap: CLAUDE.md covers architecture, but no `CONTRIBUTING.md` covers workflow (branch naming, PR template, review SLA).
-  - Impact: friction for multi-team scaling (CLAUDE.md's stated goal).
-  - Approach: short `CONTRIBUTING.md` + a `.github/pull_request_template.md`.
-
----
-
 ## Summary by priority
 
-- **P0 (must-have before public launch):** graceful shutdown.
-- **P1 (polished v1):** bundle analyzer + Lighthouse CI, accessibility tests, WS load tests, runbook.
-- **P2 (future):** idempotent retries, GDPR export/delete, image policy + code-splitting, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
+- **P1 (polished v1):** bundle analyzer + Lighthouse CI, accessibility tests, WS load tests.
+- **P2 (future):** GDPR export/delete, image policy + code-splitting, contract tests, mutation testing.
