@@ -81,6 +81,16 @@ export class WebSocketHub {
     return this.conns.get(gameId)?.has(playerId) ?? false;
   }
 
+  closeAll(): void {
+    for (const game of this.conns.values()) {
+      for (const conn of game.values()) {
+        conn.socket.send(serializeServerMessage({ type: "SHUTDOWN_NOTICE" }));
+        conn.socket.close(1001, "Server shutting down.");
+      }
+    }
+    this.conns.clear();
+  }
+
   get size(): number {
     let total = 0;
     for (const game of this.conns.values()) total += game.size;

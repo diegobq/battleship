@@ -125,6 +125,24 @@ describe("WebSocketHub", () => {
     hub.register("g2", "c", makeSock());
     expect(hub.size).toBe(3);
   });
+
+  it("closeAll sends SHUTDOWN_NOTICE, closes every socket, and empties the hub", () => {
+    const hub = new WebSocketHub();
+    const sockA = makeSock();
+    const sockB = makeSock();
+    const sockC = makeSock();
+    hub.register("g1", "a", sockA);
+    hub.register("g1", "b", sockB);
+    hub.register("g2", "c", sockC);
+
+    hub.closeAll();
+
+    for (const sock of [sockA, sockB, sockC]) {
+      expect(JSON.parse(sock.sends[0])).toEqual({ type: "SHUTDOWN_NOTICE" });
+      expect(sock.close).toHaveBeenCalledWith(1001, "Server shutting down.");
+    }
+    expect(hub.size).toBe(0);
+  });
 });
 
 describe("getHub singleton", () => {

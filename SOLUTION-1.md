@@ -686,6 +686,20 @@ SVG was chosen over rasterised PNGs because: no build-time image-processing depe
 
 ---
 
+## Graceful Shutdown
+
+On `SIGTERM` or `SIGINT`, the server performs an orderly shutdown rather than dropping connections immediately:
+
+1. **Block new upgrades** — the `upgrade` event handler checks a `shuttingDown` flag and returns `503 Service Unavailable` to any new WS handshake, preventing new players from connecting mid-drain.
+2. **Notify active sessions** — `WebSocketHub.closeAll()` sends a `SHUTDOWN_NOTICE` server message to every open connection across all games, then closes each socket with code `1001 Going Away`. The client's existing reconnect logic (in `useWebSocket.ts`) receives the clean close and can display an appropriate UI state rather than a generic "Connection lost" error.
+3. **Drain** — a 10-second `setTimeout` allows any in-flight HTTP requests and WS frames to complete before `httpServer.close()` is called and the process exits with code `0`.
+
+The `SHUTDOWN_NOTICE` message type was added to the `ServerMessage` union in `packages/core/src/server/ws/protocol.ts` and is tested in `hub.test.ts`.
+
+**Rationale:** Without a `SIGTERM` handler, every deploy terminates active WS connections abruptly. Players mid-game see "Connection lost" on each release even when the deployment is otherwise healthy. The 10-second drain window matches common Fly.io/Kubernetes `terminationGracePeriodSeconds` defaults and is long enough to let clients receive the notice and stop attempting shots.
+
+---
+
 ## Health & Readiness Probes
 
 Kubernetes/Fly.io deployment platforms require liveness and readiness probes to manage rolling deploys and traffic gating. Two health check endpoints have been added:

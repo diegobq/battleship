@@ -23,11 +23,6 @@
 
 ## Reliability
 
-- **Graceful shutdown** — **P0**
-  - Gap: `apps/web/server.ts` has no `SIGTERM` / `SIGINT` handler. Connections are dropped abruptly on deploy.
-  - Impact: in-flight WS messages lost; players see "Connection lost" mid-game on every release.
-  - Approach: on `SIGTERM`, stop accepting new WS upgrades, broadcast a `SHUTDOWN_NOTICE` to active sessions, drain for ~10 s, then `server.close()`.
-
 - **Idempotent client retries** — **P2**
   - Gap: `POST /api/game/create` and `/join` are not idempotent; a double-click could create two games.
   - Impact: lobby noise; orphan games.

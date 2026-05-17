@@ -20,6 +20,7 @@ import { env } from "./lib/env";
 
 const WS_PATH = "/api/game/stream";
 const dev = env.NODE_ENV !== "production";
+const DRAIN_MS = 10_000;
 
 function isOriginAllowed(origin: string | undefined): boolean {
   const raw = env.ALLOWED_ORIGINS ?? "";
@@ -46,6 +47,7 @@ async function start(): Promise<void> {
   const turnTimer = new TurnTimer();
   const clock = makeSystemClock();
   const rng = makeSystemRng();
+  let shuttingDown = false;
 
   wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     onWsConnection(ws, req, { hub, turnTimer, clock, rng }, sessionSecret);
@@ -56,6 +58,11 @@ async function start(): Promise<void> {
     (req: IncomingMessage, socket: Socket, head: Buffer) => {
       const pathname = parse(req.url ?? "/").pathname;
       if (pathname !== WS_PATH) return; // let Next.js HMR handle other upgrades
+      if (shuttingDown) {
+        socket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
+        socket.destroy();
+        return;
+      }
       if (!isOriginAllowed(req.headers.origin)) {
         socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
         socket.destroy();
@@ -72,6 +79,35 @@ async function start(): Promise<void> {
       `> Battleship server ready on http://${env.HOSTNAME}:${env.PORT}`,
     );
   });
+
+  registerShutdownHandlers(httpServer, hub, () => {
+    shuttingDown = true;
+  });
+}
+
+function registerShutdownHandlers(
+  httpServer: ReturnType<typeof createServer>,
+  hub: ReturnType<typeof getHub>,
+  onShutdown: () => void,
+): void {
+  let shuttingDown = false;
+
+  const shutdown = (): void => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    onShutdown();
+    console.log("> Graceful shutdown initiated…");
+    hub.closeAll();
+    setTimeout(() => {
+      httpServer.close(() => {
+        console.log("> Server closed.");
+        process.exit(0);
+      });
+    }, DRAIN_MS);
+  };
+
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
 }
 
 interface RuntimeDeps {
