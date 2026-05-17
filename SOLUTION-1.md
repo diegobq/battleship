@@ -581,14 +581,14 @@ Rate limiting is enforced at the WebSocket layer and delegated to the reverse pr
 
 `apps/web/next.config.ts` now exports a `headers()` function that attaches security headers to every response (`source: "/(.*)"`) via the Next.js built-in header injection:
 
-| Header | Value | Purpose |
-|---|---|---|
-| `X-Frame-Options` | `DENY` | Clickjacking prevention (legacy browsers) |
-| `X-Content-Type-Options` | `nosniff` | MIME-type sniffing prevention |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` | Limits referrer leakage on cross-origin navigation |
-| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Disables browser features the game does not use |
-| `Content-Security-Policy` | see below | XSS containment |
-| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Forces HTTPS for 2 years (production only) |
+| Header                      | Value                                          | Purpose                                            |
+| --------------------------- | ---------------------------------------------- | -------------------------------------------------- |
+| `X-Frame-Options`           | `DENY`                                         | Clickjacking prevention (legacy browsers)          |
+| `X-Content-Type-Options`    | `nosniff`                                      | MIME-type sniffing prevention                      |
+| `Referrer-Policy`           | `strict-origin-when-cross-origin`              | Limits referrer leakage on cross-origin navigation |
+| `Permissions-Policy`        | `camera=(), microphone=(), geolocation=()`     | Disables browser features the game does not use    |
+| `Content-Security-Policy`   | see below                                      | XSS containment                                    |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Forces HTTPS for 2 years (production only)         |
 
 **CSP policy:** `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss: ws:; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`
 
