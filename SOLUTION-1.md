@@ -32,6 +32,7 @@ This document records the design rationale behind the Battleship implementation 
 - [Signed Player Sessions](#signed-player-sessions) (REST · WebSocket · Route Guard)
 - [Rate Limiting](#rate-limiting)
 - [Security Headers](#security-headers)
+- [Input Sanitisation](#input-sanitisation)
 - [Health & Readiness Probes](#health--readiness-probes-p0)
 - [Verification](#verification)
 
@@ -595,6 +596,26 @@ Rate limiting is enforced at the WebSocket layer and delegated to the reverse pr
 `script-src` requires `'unsafe-inline'` because Next.js injects inline bootstrap scripts for hydration. This is the known trade-off with Next.js App Router and static CSP headers. The production-grade resolution is a **nonce-based CSP** implemented via Next.js `middleware.ts`: the middleware generates a per-request nonce, injects it into the CSP header, and passes it to `next/headers` for server components to forward to `<Script>` tags. That is a follow-up hardening step beyond the MVP scope.
 
 HSTS is omitted in development to avoid locking localhost to HTTPS.
+
+---
+
+## Input Sanitisation
+
+Player-supplied strings (names, game names) pass through two sanitisation layers in `packages/core/src/api/dto.ts` before being stored or broadcast:
+
+1. **NFKC Unicode normalisation** — `String.prototype.normalize("NFKC")` collapses compatibility equivalents (e.g., full-width `Ａ` → ASCII `A`, ligatures, superscripts). This prevents homograph attacks where two visually identical names are actually distinct byte sequences.
+
+2. **Invisible codepoint stripping** — A regex covers the ranges documented in Unicode as zero-width or bidirectional-control characters:
+   - U+200B–U+200D (zero-width space / non-joiner / joiner)
+   - U+FEFF (BOM / zero-width no-break space)
+   - U+202A–U+202E (directional embedding / override marks)
+   - U+2066–U+2069 (directional isolate marks)
+
+   These are invisible to the eye but distinct in bytes, enabling spoofed identical-looking names and potential rendering glitches.
+
+Both transformations happen before the length check, so the 32-character cap is enforced against the _rendered_ name rather than the raw input. A name that normalises to an empty string is rejected with the same 400 error as a missing field.
+
+`parseOptionalString` (used for `gameName`) intentionally does **not** apply sanitisation — optional cosmetic strings are either accepted as-is or silently discarded; they are never compared for identity, so homograph attacks have no surface area there.
 
 ---
 

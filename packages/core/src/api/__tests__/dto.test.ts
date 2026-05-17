@@ -55,6 +55,57 @@ describe("parseCreateGameRequest", () => {
     }
   });
 
+  it("NFKC-normalises full-width characters in playerName", () => {
+    // Full-width Latin 'Ａｌｉｃｅ' normalises to ASCII 'Alice'
+    const req = parseCreateGameRequest({
+      mode: "Classic",
+      playerName: "Ａｌｉｃｅ",
+    });
+    expect(req.playerName).toBe("Alice");
+  });
+
+  it("strips zero-width space from playerName", () => {
+    // U+200B (zero-width space) is invisible and must be removed
+    const req = parseCreateGameRequest({
+      mode: "Classic",
+      playerName: "Ali​ce",
+    });
+    expect(req.playerName).toBe("Alice");
+  });
+
+  it("strips RTL-override codepoints from playerName", () => {
+    // U+202E (right-to-left override) can visually reverse a name
+    const req = parseCreateGameRequest({
+      mode: "Classic",
+      playerName: "Ali‮ce",
+    });
+    expect(req.playerName).toBe("Alice");
+  });
+
+  it("throws 400 when playerName is non-empty but becomes empty after sanitisation", () => {
+    // A name composed entirely of zero-width characters must be rejected
+    expect(() =>
+      parseCreateGameRequest({
+        mode: "Classic",
+        playerName: "​‌‍",
+      }),
+    ).toThrow(ApiError);
+  });
+
+  it("enforces max length against the sanitised string, not the raw input", () => {
+    // 32 full-width chars normalise to 32 ASCII chars — exactly at the limit
+    const exactly32 = "Ａ".repeat(32);
+    expect(() =>
+      parseCreateGameRequest({ mode: "Classic", playerName: exactly32 }),
+    ).not.toThrow();
+
+    // 33 full-width chars normalise to 33 ASCII chars — one over the limit
+    const over32 = "Ａ".repeat(33);
+    expect(() =>
+      parseCreateGameRequest({ mode: "Classic", playerName: over32 }),
+    ).toThrow(ApiError);
+  });
+
   it("accepts an optional gameName", () => {
     const req = parseCreateGameRequest({ ...valid, gameName: "My Game" });
     expect(req.gameName).toBe("My Game");

@@ -15,7 +15,6 @@
 ## Table of contents
 
 - [Reliability](#reliability)
-- [Security](#security)
 - [Frontend UX](#frontend-ux)
 - [SEO & Discoverability](#seo--discoverability)
 - [PWA & Mobile](#pwa--mobile)
@@ -40,15 +39,6 @@
   - Gap: `POST /api/game/create` and `/join` are not idempotent; a double-click could create two games.
   - Impact: lobby noise; orphan games.
   - Approach: accept an `Idempotency-Key` header; cache the response for 5 min.
-
----
-
-## Security
-
-- **Input length caps & sanitisation** — **P1**
-  - Gap: player names are length-capped at 32 (`packages/core/src/api/dto.ts`) but not Unicode-normalised; emoji and zero-width characters pass through.
-  - Impact: spoofed identical-looking names; rendering edge cases.
-  - Approach: NFKC-normalise and strip zero-width / RTL-override codepoints before persisting.
 
 ---
 
@@ -236,5 +226,5 @@
 ## Summary by priority
 
 - **P0 (must-have before public launch):** graceful shutdown, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
-- **P1 (polished v1):** input normalisation, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, ToS, accessibility tests, WS load tests, runbook.
+- **P1 (polished v1):** OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, ToS, accessibility tests, WS load tests, runbook.
 - **P2 (future):** idempotent retries, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
