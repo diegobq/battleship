@@ -26,17 +26,18 @@
 | Topic                         | MVP state                                                                                       | Detail                                                                                                          |
 | ----------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | **Database**                  | In-memory only — `GameRegistry` lives on `globalThis`. A server restart drops all active games. | [SOLUTION-1.md § In-Memory State Seam](./SOLUTION-1.md#in-memory-state-seam) · [SOLUTION-3.md](./SOLUTION-3.md) |
-| **GDPR data export / delete** | No flow; no persisted data to export yet.                                                       | [PRODUCTION-CHECKLIST.md § Analytics & Consent](./PRODUCTION-CHECKLIST.md#analytics--consent)                   |
+| **GDPR data export / delete** | No flow; no persisted data to export yet.                                                       | —                                                                                                               |
 
 ---
 
 ## Observability
 
-| Topic                    | MVP state                                                                                  | Detail                                                                                        |
-| ------------------------ | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| **Structured logging**   | Ad-hoc `console.log` / `console.error`. No log levels, no JSON output, no correlation IDs. | —                                                                                             |
-| **Error tracking**       | Server errors are swallowed by WS `try/catch`; client errors go nowhere.                   | —                                                                                             |
-| **Analytics / tracking** | No event tracking; cannot answer "games per day", "mode mix", "average match length".      | [PRODUCTION-CHECKLIST.md § Analytics & Consent](./PRODUCTION-CHECKLIST.md#analytics--consent) |
+| Topic                       | MVP state                                                                                                       | Detail |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- | ------ |
+| **Structured logging**      | Ad-hoc `console.log` / `console.error`. No log levels, no JSON output, no correlation IDs.                      | —      |
+| **Error tracking**          | Server errors are swallowed by WS `try/catch`; client errors go nowhere.                                        | —      |
+| **Analytics / tracking**    | No event tracking; cannot answer "games per day", "mode mix", "average match length".                           | —      |
+| **Consent / cookie banner** | No banner. Session cookie is live; a consent banner is required once analytics or persistent auth cookies ship. | —      |
 
 ---
 
@@ -52,10 +53,10 @@
 
 ## Security
 
-| Topic                  | MVP state                                                                                                                                                                                                                                                   | Detail                                                                   |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| **REST rate limiting** | Per-IP throttling is a reverse-proxy concern (Nginx / Fly.io). No application-layer limit on `/create` or `/join`. Future `withAuth` routes should add per-`playerId` throttling in the wrapper. WS rate limiting (10 msg/s per connection) is implemented. | [SOLUTION-1.md § Rate Limiting](./SOLUTION-1.md#rate-limiting)           |
-| **Dependency audit**   | `pnpm audit` is never run in CI.                                                                                                                                                                                                                            | [PRODUCTION-CHECKLIST.md § Security](./PRODUCTION-CHECKLIST.md#security) |
+| Topic                  | MVP state                                                                                                                                                                                                                                                   | Detail                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **REST rate limiting** | Per-IP throttling is a reverse-proxy concern (Nginx / Fly.io). No application-layer limit on `/create` or `/join`. Future `withAuth` routes should add per-`playerId` throttling in the wrapper. WS rate limiting (10 msg/s per connection) is implemented. | [SOLUTION-1.md § Rate Limiting](./SOLUTION-1.md#rate-limiting) |
+| **Dependency audit**   | `pnpm audit` is never run in CI.                                                                                                                                                                                                                            | —                                                              |
 
 ---
 
@@ -81,12 +82,12 @@
 
 ## Code Quality
 
-| Topic                   | MVP state                                                                                        | Detail                                                                             |
-| ----------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| **Husky + lint-staged** | No pre-commit hooks. Quality gates run manually and in CI instead of enforcing fixes pre-commit. | —                                                                                  |
-| **Commitlint**          | Commit naming follows repo guidance socially; no automated enforcement is configured.            | —                                                                                  |
-| **CHANGELOG**           | No generated changelog yet; release communication remains informal at MVP stage.                 | —                                                                                  |
-| **Versioning**          | Package version stays at `0.0.0`; formal semver is deferred until there is a public release cut. | [PRODUCTION-CHECKLIST.md § DevOps & CI/CD](./PRODUCTION-CHECKLIST.md#devops--cicd) |
+| Topic                   | MVP state                                                                                        | Detail |
+| ----------------------- | ------------------------------------------------------------------------------------------------ | ------ |
+| **Husky + lint-staged** | No pre-commit hooks. Quality gates run manually and in CI instead of enforcing fixes pre-commit. | —      |
+| **Commitlint**          | Commit naming follows repo guidance socially; no automated enforcement is configured.            | —      |
+| **CHANGELOG**           | No generated changelog yet; release communication remains informal at MVP stage.                 | —      |
+| **Versioning**          | Package version stays at `0.0.0`; formal semver is deferred until there is a public release cut. | —      |
 
 ---
 
@@ -102,8 +103,8 @@
 
 ## Legal & Compliance
 
-| Topic                | MVP state                                                                                                                      | Detail                                                                                        |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| **Privacy policy**   | No `/privacy` page. Session cookie is live; a policy is required before public launch but is out of scope for this assessment. | —                                                                                             |
-| **Terms of service** | No ToS. Required by app stores; out of scope for this assessment.                                                              | —                                                                                             |
-| **Consent banner**   | No cookie / analytics consent banner. Not required yet — no cookies or trackers — but becomes mandatory when analytics land.   | [PRODUCTION-CHECKLIST.md § Analytics & Consent](./PRODUCTION-CHECKLIST.md#analytics--consent) |
+| Topic                | MVP state                                                                                                                      | Detail |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| **Privacy policy**   | No `/privacy` page. Session cookie is live; a policy is required before public launch but is out of scope for this assessment. | —      |
+| **Terms of service** | No ToS. Required by app stores; out of scope for this assessment.                                                              | —      |
+| **Consent banner**   | No cookie / analytics consent banner. Not required yet — no cookies or trackers — but becomes mandatory when analytics land.   | —      |

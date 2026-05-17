@@ -17,7 +17,6 @@
 - [Reliability](#reliability)
 - [SEO & Discoverability](#seo--discoverability)
 - [PWA & Mobile](#pwa--mobile)
-- [Analytics & Consent](#analytics--consent)
 - [Performance](#performance)
 - [Testing Maturity](#testing-maturity)
 - [Configuration](#configuration)
@@ -74,25 +73,6 @@
   - Gap: `beforeinstallprompt` is not handled.
   - Impact: returning users do not get a "Add to Home Screen" hint.
   - Approach: small banner that listens for the event and shows a "Install" button.
-
----
-
-## Analytics & Consent
-
-- **Event analytics** — **P1**
-  - Gap: no instrumentation. Cannot answer "how many games per day", "mode mix", "average match length".
-  - Impact: product cannot iterate without data.
-  - Approach: Plausible (privacy-first, GDPR-friendly, no consent banner needed) or PostHog (richer funnel). Track: `lobby_view`, `game_create`, `game_join`, `match_end`.
-
-- **Consent / cookie banner** — **P1**
-  - Gap: no banner. Acceptable today because no cookies / no third-party trackers, but becomes mandatory the moment analytics or auth cookies ship.
-  - Impact: EU GDPR non-compliance once cookies are introduced.
-  - Approach: small declarative consent component reading `Cookie-Consent` from `localStorage`; gate non-essential analytics until granted.
-
-- **GDPR data-export / delete** — **P2**
-  - Gap: no flow to export or erase a player's stored data.
-  - Impact: blocks EU compliance once persistence is real.
-  - Approach: once Redis lands, expose `GET /api/me/export` and `DELETE /api/me` behind authenticated sessions.
 
 ---
 
@@ -180,5 +160,5 @@
 ## Summary by priority
 
 - **P0 (must-have before public launch):** graceful shutdown.
-- **P1 (polished v1):** OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, accessibility tests, WS load tests, runbook.
+- **P1 (polished v1):** OpenGraph + sitemap, per-route metadata, manifest.webmanifest, bundle analyzer + Lighthouse CI, accessibility tests, WS load tests, runbook.
 - **P2 (future):** idempotent retries, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
