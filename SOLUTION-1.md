@@ -686,6 +686,20 @@ SVG was chosen over rasterised PNGs because: no build-time image-processing depe
 
 ---
 
+## Idempotent REST Endpoints
+
+`POST /api/game/create` and `POST /api/game/join` now support the `Idempotency-Key` request header. When a client includes the header, the server:
+
+1. Checks `IdempotencyCache` (a `globalThis` singleton keyed by the header value).
+2. On a **cache hit** — returns the previously computed `{ gameId, playerId }` body and re-sets the session cookie, making the response byte-for-byte equivalent to the original.
+3. On a **cache miss** — executes the full request, then stores `{ gameId, playerId, cookieValue }` under the key with a 5-minute TTL.
+
+The `IdempotencyCache` class in `apps/web/lib/api/idempotency.ts` accepts injected `now` timestamps so TTL tests are deterministic (same pattern as `Clock`). The `cookieValue` is stored (not re-minted) so the replayed cookie is identical to the original — no dependency on the session-token module at replay time.
+
+**Rationale:** A double-click on "Create" or "Join" fires two near-simultaneous POST requests. Without idempotency, both succeed and create two separate game entries (or two player entries in the same game). The `Idempotency-Key` header (UUID generated on the client before the first submission) lets the server deduplicate safely. The client sets the key once per form submission; retries on network failure reuse the same key and receive the original outcome.
+
+---
+
 ## Graceful Shutdown
 
 On `SIGTERM` or `SIGINT`, the server performs an orderly shutdown rather than dropping connections immediately:
