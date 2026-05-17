@@ -26,7 +26,6 @@
 | Topic                         | MVP state                                                                                       | Detail                                                                                                          |
 | ----------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | **Database**                  | In-memory only — `GameRegistry` lives on `globalThis`. A server restart drops all active games. | [SOLUTION-1.md § In-Memory State Seam](./SOLUTION-1.md#in-memory-state-seam) · [SOLUTION-3.md](./SOLUTION-3.md) |
-| **Authentication**            | `playerId` is client-generated and unsigned. Anyone can forge an ID.                            | [PRODUCTION-CHECKLIST.md § Security](./PRODUCTION-CHECKLIST.md#security)                                        |
 | **GDPR data export / delete** | No flow; no persisted data to export yet.                                                       | [PRODUCTION-CHECKLIST.md § Analytics & Consent](./PRODUCTION-CHECKLIST.md#analytics--consent)                   |
 
 ---

@@ -10,6 +10,11 @@ import { TurnTimer } from "@battleship/core";
 import { handleClientMessage } from "@battleship/core";
 import { getHub } from "@battleship/core";
 import { parseClientMessage } from "@battleship/core";
+import {
+  verifyToken,
+  getSessionSecret,
+  extractTokenFromCookies,
+} from "./lib/api/session-token";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOSTNAME = process.env.HOSTNAME ?? "localhost";
@@ -27,6 +32,7 @@ function isOriginAllowed(origin: string | undefined): boolean {
 }
 
 async function start(): Promise<void> {
+  const sessionSecret = getSessionSecret();
   const app = next({ dev, hostname: HOSTNAME, port: PORT });
   await app.prepare();
   const nextHandler = app.getRequestHandler();
@@ -42,7 +48,7 @@ async function start(): Promise<void> {
   const rng = makeSystemRng();
 
   wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-    onWsConnection(ws, req, { hub, turnTimer, clock, rng });
+    onWsConnection(ws, req, { hub, turnTimer, clock, rng }, sessionSecret);
   });
 
   httpServer.on(
@@ -77,10 +83,16 @@ function onWsConnection(
   ws: WebSocket,
   req: IncomingMessage,
   deps: RuntimeDeps,
+  sessionSecret: string,
 ): void {
   const { gameId, playerId } = parseConnectionParams(req);
   if (!gameId || !playerId) {
     ws.close(4000, "Missing gameId or playerId.");
+    return;
+  }
+  const token = extractTokenFromCookies(req.headers.cookie, gameId);
+  if (!token || !verifyToken(token, playerId, gameId, sessionSecret)) {
+    ws.close(4003, "Invalid session token.");
     return;
   }
   const game = registry.get(gameId);

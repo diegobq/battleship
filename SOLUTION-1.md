@@ -29,6 +29,7 @@ This document records the design rationale behind the Battleship implementation 
 - [Optimistic Shot Feedback](#optimistic-shot-feedback)
 - [Test Strategy](#test-strategy)
 - [Error Boundaries](#error-boundaries)
+- [Signed Player Sessions](#signed-player-sessions) (REST · WebSocket · Route Guard)
 - [Health & Readiness Probes](#health--readiness-probes-p0)
 - [Verification](#verification)
 
@@ -518,6 +519,49 @@ React render errors are catastrophic in production — a single unhandled except
 **`apps/web/app/not-found.tsx`** — Custom 404 page for invalid routes (e.g., `/game/invalid-id`), preventing the default Next.js chrome.
 
 All three boundaries use the existing design tokens (`--brand-danger`, `--brand-primary`, `--surface-*`) for consistency with the game UI. Errors are logged to the console; Sentry integration (pipeline errors to external service) is a follow-up. The boundaries handle **render-time errors only**; WebSocket / connection errors remain in GameShell state (not caught by React boundaries).
+
+---
+
+## Signed Player Sessions
+
+Authentication is enforced at three layers: token issuance (REST), connection verification (WebSocket), and route guard (client navigation). Each layer has a single, centralized enforcement point.
+
+### Token issuance — REST
+
+`POST /api/game/create` and `POST /api/game/join` are the only unauthenticated endpoints by design — they are the token-minting operations themselves. Both sign `{playerId}:{gameId}` with `SESSION_SECRET` via HMAC-SHA256 and deliver the token as an `HttpOnly; SameSite=Lax; Secure` cookie named `battleship_session_{gameId}`. The token never touches JavaScript — it is invisible to the client and sent automatically by the browser on every same-site request. `SameSite=Lax` is the CSRF countermeasure: cross-origin requests (e.g., from an attacker's page) do not carry the cookie. No new npm dependencies — Node's built-in `crypto` module is used throughout.
+
+All future REST routes that require a verified identity should use a `withAuth` higher-order wrapper that reads the `Authorization: Bearer` header or the session cookie, calls `verifyToken`, and returns 401 before the handler runs:
+
+```typescript
+// lib/api/with-auth.ts (future)
+export function withAuth(
+  handler: (
+    req: Request,
+    playerId: string,
+    gameId: string,
+  ) => Promise<Response>,
+) {
+  return async (req: Request) => {
+    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+    const { playerId, gameId } = extractClaims(req);
+    if (!token || !verifyToken(token, playerId, gameId, getSessionSecret())) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHORIZED" } },
+        { status: 401 },
+      );
+    }
+    return handler(req, playerId, gameId);
+  };
+}
+```
+
+### Connection verification — WebSocket
+
+The custom Node server (`apps/web/server.ts`) is the single enforcement point for all WebSocket connections. Because the browser sends cookies automatically on the WS upgrade request, `onWsConnection` reads the session cookie from `req.headers.cookie` via `extractTokenFromCookies`, verifies it with `crypto.timingSafeEqual`, and closes the socket with code 4003 on mismatch — before `hub.register` is ever called. The token never appears in the WS URL, keeping it out of server access logs. In development, a fallback secret is used automatically; in production, `getSessionSecret()` throws at boot if `SESSION_SECRET` is unset.
+
+### Route guard — `(protected)` layout
+
+All routes that require an active session live under `app/(protected)/`. The route group adds no segments to the URL — `/game/abc` stays `/game/abc`. The `layout.tsx` is a Next.js server component: it reads `battleship_session_{gameId}` from the incoming request via `cookies()` from `next/headers` and calls `redirect("/")` before the page renders if the cookie is absent. This produces a clean server-side redirect with no hydration flash. The layout is a UX guard (fast redirect for users with no session); the cryptographic security boundary remains the WS connection check in `server.ts`.
 
 ---
 

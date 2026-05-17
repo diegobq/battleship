@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseJoinGameRequest } from "@battleship/core";
 import { ApiError, handleApiError } from "@/lib/api/errors";
+import { mintToken, getSessionSecret } from "@/lib/api/session-token";
 import { addSecondPlayer, createPlayer } from "@battleship/core";
 import { newPlayerId, newShipId } from "@battleship/core";
 import { registry, getLobbyEmitter } from "@battleship/core";
@@ -29,7 +30,15 @@ export async function POST(req: Request) {
     const updated = addSecondPlayer(game, joiner, { idFactory: newShipId });
     registry.update(input.gameId, () => updated);
     getLobbyEmitter().notify();
-    return NextResponse.json({ gameId: game.id, playerId });
+    const token = mintToken(playerId, game.id, getSessionSecret());
+    const res = NextResponse.json({ gameId: game.id, playerId });
+    res.cookies.set(`battleship_session_${game.id}`, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+    });
+    return res;
   } catch (err) {
     return handleApiError(err);
   }

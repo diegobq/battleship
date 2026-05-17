@@ -45,11 +45,6 @@
 
 ## Security
 
-- **Signed player sessions** — **P0**
-  - Gap: `playerId` is generated client-side and stored in `sessionStorage` (`apps/web/lib/ui/playerSession.ts`). Anyone can guess/forge a `playerId` and join as another player.
-  - Impact: account takeover within a game (low blast radius today — no money, no PII — but blocks any future monetisation).
-  - Approach: server mints a signed JWT (or stateless HMAC-SHA256 token) on `POST /create` / `/join`; client passes it in the WS upgrade querystring; server verifies before accepting.
-
 - **Rate limiting** — **P0**
   - Gap: no throttling on REST or WS. A malicious client can flood `SHOOT` messages.
   - Impact: trivial DoS; potential to exhaust the in-memory registry.
@@ -64,11 +59,6 @@
   - Gap: `pnpm audit` is never run.
   - Impact: known-vulnerable `ws` / `next` / transitive deps ship to prod.
   - Approach: `pnpm audit --prod --audit-level high` step in the CI pipeline; fail on high/critical.
-
-- **CSRF protection** — **P1**
-  - Gap: irrelevant today (no cookies, all state is querystring-scoped). Becomes a gap the moment auth uses cookies.
-  - Impact: cross-site state-changing requests once sessions are cookie-backed.
-  - Approach: SameSite=Lax cookies + double-submit CSRF token if/when auth lands.
 
 - **Input length caps & sanitisation** — **P1**
   - Gap: player names are length-capped at 32 (`packages/core/src/api/dto.ts`) but not Unicode-normalised; emoji and zero-width characters pass through.
@@ -184,10 +174,10 @@
   - Impact: legally undistributable as-is; blocks Web App Store publication (the CLAUDE.md objective).
   - Approach: pick one (proprietary, MIT, etc.) and add `LICENSE` at the root.
 
-- **Privacy policy** — **P0** (when analytics or auth land)
-  - Gap: no `/privacy` page; no statement on what player data is collected.
-  - Impact: GDPR violation the moment data is persisted.
-  - Approach: `apps/web/app/privacy/page.tsx` with a clear statement of: what is collected (name, IP), retention period, contact for erasure requests.
+- **Privacy policy** — **P0**
+  - Gap: no `/privacy` page; no statement on what player data is collected. Auth cookies have shipped — this is now active.
+  - Impact: GDPR violation; required before public launch.
+  - Approach: `apps/web/app/privacy/page.tsx` with a clear statement of: what is collected (name, IP, session cookie), retention period, contact for erasure requests.
 
 - **Terms of service** — **P1**
   - Gap: no ToS.
@@ -260,6 +250,6 @@
 
 ## Summary by priority
 
-- **P0 (must-have before public launch):** graceful shutdown, signed sessions, rate limiting, security headers, dependency audit in CI, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
-- **P1 (polished v1):** CSRF, input normalisation, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, ToS, accessibility tests, WS load tests, runbook.
+- **P0 (must-have before public launch):** graceful shutdown, rate limiting, security headers, dependency audit in CI, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
+- **P1 (polished v1):** input normalisation, OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, ToS, accessibility tests, WS load tests, runbook.
 - **P2 (future):** idempotent retries, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.
