@@ -15,13 +15,10 @@
 ## Table of contents
 
 - [Reliability](#reliability)
-- [Frontend UX](#frontend-ux)
 - [SEO & Discoverability](#seo--discoverability)
 - [PWA & Mobile](#pwa--mobile)
 - [Analytics & Consent](#analytics--consent)
 - [Performance](#performance)
-- [DevOps & CI/CD](#devops--cicd)
-- [Compliance & Legal](#compliance--legal)
 - [Testing Maturity](#testing-maturity)
 - [Configuration](#configuration)
 - [Documentation](#documentation)
@@ -123,44 +120,6 @@
 
 ---
 
-## DevOps & CI/CD
-
-- **GitHub Actions pipeline** — **P0**
-  - Gap: no `.github/workflows/` directory.
-  - Impact: nothing prevents a broken main branch.
-  - Approach: a single `ci.yml` running on PR: `pnpm install --frozen-lockfile`, `pnpm -r typecheck`, `pnpm -r lint`, `pnpm -r test`, `pnpm audit`. Required check before merge.
-
-- **`.env.example` + env schema** — **P0**
-  - Gap: no env documentation. `apps/web/server.ts` reads `PORT`, `HOSTNAME`, `NODE_ENV` without validation.
-  - Impact: a missing var fails late, deep in the request path.
-  - Approach: a `.env.example` at repo root + a `lib/env.ts` module validating with `zod`; throw at boot if invalid.
-
-- **Release automation** — **P2**
-  - Gap: no tagging, no release notes.
-  - Impact: rollbacks rely on git SHA recall.
-  - Approach: `changesets` for semver bumps + `GITHUB_RELEASE_NOTES`; bake the git SHA into a `/api/version` endpoint.
-
----
-
-## Compliance & Legal
-
-- **`LICENSE`** — **P0**
-  - Gap: no license file.
-  - Impact: legally undistributable as-is; blocks Web App Store publication (the CLAUDE.md objective).
-  - Approach: pick one (proprietary, MIT, etc.) and add `LICENSE` at the root.
-
-- **Privacy policy** — **P0**
-  - Gap: no `/privacy` page; no statement on what player data is collected. Auth cookies have shipped — this is now active.
-  - Impact: GDPR violation; required before public launch.
-  - Approach: `apps/web/app/privacy/page.tsx` with a clear statement of: what is collected (name, IP, session cookie), retention period, contact for erasure requests.
-
-- **Terms of service** — **P1**
-  - Gap: no ToS.
-  - Impact: no enforceable rules against abuse; required by app stores.
-  - Approach: short ToS template covering conduct, account termination, liability disclaimer.
-
----
-
 ## Testing Maturity
 
 - **Accessibility tests** — **P1**
@@ -186,11 +145,6 @@
 ---
 
 ## Configuration
-
-- **Env schema** — **P0** (also listed under DevOps)
-  - Gap: `process.env.PORT` / `HOSTNAME` / `NODE_ENV` used directly.
-  - Impact: late failures on misconfiguration.
-  - Approach: `zod` schema parsed once at boot; export typed `env` object.
 
 - **Feature flags** — **P2**
   - Gap: theme + future experiments hardcoded.
@@ -225,6 +179,6 @@
 
 ## Summary by priority
 
-- **P0 (must-have before public launch):** graceful shutdown, GitHub Actions pipeline, env schema, LICENSE, privacy policy.
-- **P1 (polished v1):** OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, ToS, accessibility tests, WS load tests, runbook.
+- **P0 (must-have before public launch):** graceful shutdown.
+- **P1 (polished v1):** OpenGraph + sitemap, per-route metadata, manifest.webmanifest, analytics + consent, bundle analyzer + Lighthouse CI, accessibility tests, WS load tests, runbook.
 - **P2 (future):** idempotent retries, service worker, install prompt, GDPR export/delete, image policy + code-splitting, release automation, contract tests, mutation testing, feature flags, externalised mode config, TypeDoc, contributor docs.

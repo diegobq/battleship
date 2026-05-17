@@ -61,13 +61,13 @@
 
 ## Infrastructure & Scaling
 
-| Topic                  | MVP state                                                                                                                                       | Detail                                                                             |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| **Horizontal scaling** | Single-instance only. WebSocket hub is in-memory; no Redis pub-sub for multi-node fan-out.                                                      | [SOLUTION-3.md](./SOLUTION-3.md)                                                   |
-| **Graceful shutdown**  | No `SIGTERM` handler. Active WS connections drop on every deploy.                                                                               | [PRODUCTION-CHECKLIST.md § Reliability](./PRODUCTION-CHECKLIST.md#reliability)     |
-| **CI/CD pipeline**     | No `.github/workflows/`. Nothing gates a broken `main`.                                                                                         | [PRODUCTION-CHECKLIST.md § DevOps & CI/CD](./PRODUCTION-CHECKLIST.md#devops--cicd) |
-| **Dependency audit**   | `pnpm audit` is not run. Belongs in the CI pipeline as a `pnpm audit --prod --audit-level high` step — no standalone application code required. | [PRODUCTION-CHECKLIST.md § DevOps & CI/CD](./PRODUCTION-CHECKLIST.md#devops--cicd) |
-| **Env schema**         | `process.env.*` read directly; a missing var fails late and deep.                                                                               | [PRODUCTION-CHECKLIST.md § Configuration](./PRODUCTION-CHECKLIST.md#configuration) |
+| Topic                  | MVP state                                                                                                                                       | Detail                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Horizontal scaling** | Single-instance only. WebSocket hub is in-memory; no Redis pub-sub for multi-node fan-out.                                                      | [SOLUTION-3.md](./SOLUTION-3.md)                                               |
+| **Graceful shutdown**  | No `SIGTERM` handler. Active WS connections drop on every deploy.                                                                               | [PRODUCTION-CHECKLIST.md § Reliability](./PRODUCTION-CHECKLIST.md#reliability) |
+| **CI/CD pipeline**     | No `.github/workflows/`. Nothing gates a broken `main`.                                                                                         | —                                                                              |
+| **Dependency audit**   | `pnpm audit` is not run. Belongs in the CI pipeline as a `pnpm audit --prod --audit-level high` step — no standalone application code required. | —                                                                              |
+| **Release automation** | No tagging, no release notes. Rollbacks rely on git SHA recall.                                                                                 | —                                                                              |
 
 ---
 
@@ -102,9 +102,8 @@
 
 ## Legal & Compliance
 
-| Topic                | MVP state                                                                                                                    | Detail                                                                                        |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **LICENSE**          | No license file; the repo is legally undistributable.                                                                        | [PRODUCTION-CHECKLIST.md § Compliance & Legal](./PRODUCTION-CHECKLIST.md#compliance--legal)   |
-| **Privacy policy**   | No `/privacy` page; no statement on what data is collected. Required before any data is persisted.                           | [PRODUCTION-CHECKLIST.md § Compliance & Legal](./PRODUCTION-CHECKLIST.md#compliance--legal)   |
-| **Terms of service** | No ToS; required by app stores.                                                                                              | [PRODUCTION-CHECKLIST.md § Compliance & Legal](./PRODUCTION-CHECKLIST.md#compliance--legal)   |
-| **Consent banner**   | No cookie / analytics consent banner. Not required yet — no cookies or trackers — but becomes mandatory when analytics land. | [PRODUCTION-CHECKLIST.md § Analytics & Consent](./PRODUCTION-CHECKLIST.md#analytics--consent) |
+| Topic                | MVP state                                                                                                                      | Detail                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| **Privacy policy**   | No `/privacy` page. Session cookie is live; a policy is required before public launch but is out of scope for this assessment. | —                                                                                             |
+| **Terms of service** | No ToS. Required by app stores; out of scope for this assessment.                                                              | —                                                                                             |
+| **Consent banner**   | No cookie / analytics consent banner. Not required yet — no cookies or trackers — but becomes mandatory when analytics land.   | [PRODUCTION-CHECKLIST.md § Analytics & Consent](./PRODUCTION-CHECKLIST.md#analytics--consent) |
