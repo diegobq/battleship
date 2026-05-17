@@ -686,6 +686,8 @@ SVG was chosen over rasterised PNGs because: no build-time image-processing depe
 
 ---
 
+---
+
 ## Idempotent REST Endpoints
 
 `POST /api/game/create` and `POST /api/game/join` now support the `Idempotency-Key` request header. When a client includes the header, the server:

@@ -56,6 +56,23 @@ pnpm test --coverage    # run tests with V8 coverage report
 pnpm lint
 ```
 
+## Bundle analysis
+
+```bash
+pnpm -F @battleship/web analyze
+```
+
+## Lighthouse audit
+
+Requires the dev or production server to be running first:
+
+```bash
+pnpm dev                          # in one terminal
+pnpm -F @battleship/web lighthouse  # in another
+```
+
+Report is written to `apps/web/.lighthouse/report.html`.
+
 ---
 
 ## Solutions

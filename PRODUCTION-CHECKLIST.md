@@ -14,32 +14,7 @@
 
 ## Table of contents
 
-- [Performance](#performance)
 - [Testing Maturity](#testing-maturity)
-
----
-
-## Performance
-
-- **Bundle analyzer in CI** — **P1**
-  - Gap: no bundle-size reporting.
-  - Impact: bundle bloat creeps in unnoticed.
-  - Approach: `@next/bundle-analyzer` exposed as `pnpm analyze`; CI step that fails the build if first-load JS exceeds a budget (e.g. 150 KB).
-
-- **Lighthouse CI** — **P1**
-  - Gap: no automated Lighthouse runs.
-  - Impact: regressions in LCP / CLS / TBT go unnoticed.
-  - Approach: `lhci` GitHub Action running on every PR against a Fly preview; budget thresholds for mobile.
-
-- **Image optimisation policy** — **P2**
-  - Gap: no image strategy (currently no raster images either).
-  - Impact: future marketing assets risk shipping unoptimised.
-  - Approach: enforce `next/image` everywhere; document in CLAUDE.md.
-
-- **Code-splitting audit** — **P2**
-  - Gap: theme CSS for unused themes (`christmas.css`) is statically imported.
-  - Impact: paid bundle bytes for a theme that 99 % of users never see.
-  - Approach: dynamic-import the active theme stylesheet at runtime based on the persisted preference.
 
 ---
 
@@ -69,5 +44,5 @@
 
 ## Summary by priority
 
-- **P1 (polished v1):** bundle analyzer + Lighthouse CI, accessibility tests, WS load tests.
+- **P1 (polished v1):** accessibility tests, WS load tests.
 - **P2 (future):** GDPR export/delete, image policy + code-splitting, contract tests, mutation testing.

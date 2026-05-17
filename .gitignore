@@ -23,6 +23,7 @@ CLAUDE.md
 
 # next.js
 /apps/web/.next/
+/apps/web/.lighthouse/
 
 # production
 /build

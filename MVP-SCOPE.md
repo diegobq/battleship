@@ -17,6 +17,7 @@
 - [Features](#features)
 - [Code Quality](#code-quality)
 - [Design System Tooling](#design-system-tooling)
+- [Performance](#performance)
 - [Documentation](#documentation)
 - [Legal & Compliance](#legal--compliance)
 
@@ -57,7 +58,7 @@
 | Topic                  | MVP state                                                                                                                                                                                                                                                   | Detail                                                         |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | **REST rate limiting** | Per-IP throttling is a reverse-proxy concern (Nginx / Fly.io). No application-layer limit on `/create` or `/join`. Future `withAuth` routes should add per-`playerId` throttling in the wrapper. WS rate limiting (10 msg/s per connection) is implemented. | [SOLUTION-1.md § Rate Limiting](./SOLUTION-1.md#rate-limiting) |
-| **Dependency audit**   | `pnpm audit` is never run in CI.                                                                                                                                                                                                                            | —                                                              |
+| **Dependency audit**   | `pnpm audit` is never run in CI. Not wired up yet — no pipeline exists.                                                                                                                                                                                     | —                                                              |
 
 ---
 
@@ -68,7 +69,7 @@
 | **Horizontal scaling** | Single-instance only. WebSocket hub is in-memory; no Redis pub-sub for multi-node fan-out.                                                                                                  | [SOLUTION-3.md](./SOLUTION-3.md)                                       |
 | **Graceful shutdown**  | Implemented — `SIGTERM`/`SIGINT` handler drains connections and broadcasts `SHUTDOWN_NOTICE`.                                                                                               | [SOLUTION-1.md § Graceful Shutdown](./SOLUTION-1.md#graceful-shutdown) |
 | **CI/CD pipeline**     | No `.github/workflows/`. Nothing gates a broken `main`.                                                                                                                                     | —                                                                      |
-| **Dependency audit**   | `pnpm audit` is not run. Belongs in the CI pipeline as a `pnpm audit --prod --audit-level high` step — no standalone application code required.                                             | —                                                                      |
+| **Dependency audit**   | `pnpm audit` is not run. Belongs in the CI pipeline as a `pnpm audit --prod --audit-level high` step. Not wired up yet — no pipeline exists.                                                | —                                                                      |
 | **Release automation** | No tagging, no release notes. Rollbacks rely on git SHA recall.                                                                                                                             | —                                                                      |
 | **Feature flags**      | Theme and experiments are hardcoded. No LaunchDarkly / Unleash / Redis-backed flag service.                                                                                                 | —                                                                      |
 | **Per-mode config**    | `EliteConfig` is hardcoded in `packages/core/src/core/scoring.ts`. Balance tweaks require a deploy. The `Partial<EliteConfig>` override seam is ready for a remote JSON loader when needed. | —                                                                      |
@@ -102,6 +103,17 @@
 | **Storybook / Chromatic**                                   | Primitive count is small enough for in-app inspection; no visual-regression CI.                | [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md) |
 | **Design-token pipeline** (Style Dictionary, Tokens Studio) | CSS variables + Tailwind v4 `@theme` cover every use case; no build-step token transformation. | [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md) |
 | **Animation library**                                       | Keyframes are inline in component CSS modules; durations read from `--motion-*` tokens.        | [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md) |
+
+---
+
+## Performance
+
+| Topic                         | MVP state                                                                                                                                                                                                                     | Detail |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **Bundle analyser**           | `pnpm -F @battleship/web analyze` is available (see `README.md`). The script enables a future CI step to fail the build when first-load JS exceeds a size threshold — not wired up yet as no pipeline exists.                 | —      |
+| **Lighthouse CI**             | Local script available: `pnpm -F @battleship/web lighthouse` (see `README.md`). Automated runs on every PR are not wired up yet — no pipeline exists.                                                                         | —      |
+| **Image optimisation policy** | Enforced by `@next/next/no-img-element` (included in `eslint-config-next/core-web-vitals`). Any raw `<img>` tag is a lint error. No raster images yet — policy is ready for when they are added.                              | —      |
+| **Code-splitting audit**      | Theme CSS files (`dark.css`, `christmas.css`) are statically imported but each is ~590 bytes — negligible overhead. Dynamic import adds more JS complexity than it saves at this scale. Revisit if themes grow significantly. | —      |
 
 ---
 
