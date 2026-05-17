@@ -34,8 +34,8 @@
 
 | Topic                    | MVP state                                                                                  | Detail                                                                                        |
 | ------------------------ | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| **Structured logging**   | Ad-hoc `console.log` / `console.error`. No log levels, no JSON output, no correlation IDs. | [PRODUCTION-CHECKLIST.md § Observability](./PRODUCTION-CHECKLIST.md#observability)            |
-| **Error tracking**       | Server errors are swallowed by WS `try/catch`; client errors go nowhere.                   | [PRODUCTION-CHECKLIST.md § Observability](./PRODUCTION-CHECKLIST.md#observability)            |
+| **Structured logging**   | Ad-hoc `console.log` / `console.error`. No log levels, no JSON output, no correlation IDs. | —                                                                                             |
+| **Error tracking**       | Server errors are swallowed by WS `try/catch`; client errors go nowhere.                   | —                                                                                             |
 | **Analytics / tracking** | No event tracking; cannot answer "games per day", "mode mix", "average match length".      | [PRODUCTION-CHECKLIST.md § Analytics & Consent](./PRODUCTION-CHECKLIST.md#analytics--consent) |
 
 ---
