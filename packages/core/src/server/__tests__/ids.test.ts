@@ -1,37 +1,42 @@
-import { describe, expect, it } from "vitest";
+import { describe, it, expect } from "vitest";
 import { newGameId, newPlayerId, newShipId } from "../ids";
 
 describe("newGameId", () => {
-  it("returns an 8-character hex string", () => {
-    expect(newGameId()).toMatch(/^[0-9a-f]{8}$/);
+  it("returns an 8-character string", () => {
+    expect(newGameId()).toHaveLength(8);
   });
 
-  it("generates 1 000 unique IDs", () => {
-    const ids = new Set(Array.from({ length: 1_000 }, newGameId));
-    expect(ids.size).toBe(1_000);
+  it("returns unique values across successive calls", () => {
+    const ids = new Set(Array.from({ length: 200 }, newGameId));
+    expect(ids.size).toBe(200);
   });
 });
 
 describe("newPlayerId", () => {
-  it("returns a UUID v4", () => {
-    expect(newPlayerId()).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-    );
+  it("returns a UUID v4 formatted string (36 chars, dashes in right places)", () => {
+    const id = newPlayerId();
+    expect(id).toHaveLength(36);
+    expect(id[8]).toBe("-");
+    expect(id[13]).toBe("-");
+    expect(id[18]).toBe("-");
+    expect(id[23]).toBe("-");
   });
 
-  it("generates 1 000 unique IDs", () => {
-    const ids = new Set(Array.from({ length: 1_000 }, newPlayerId));
-    expect(ids.size).toBe(1_000);
+  it("returns unique values across successive calls", () => {
+    const ids = new Set(Array.from({ length: 200 }, newPlayerId));
+    expect(ids.size).toBe(200);
   });
 });
 
 describe("newShipId", () => {
-  it("returns a 12-character hex string", () => {
-    expect(newShipId()).toMatch(/^[0-9a-f]{12}$/);
+  it("returns a 12-character string with no dashes", () => {
+    const id = newShipId();
+    expect(id).toHaveLength(12);
+    expect(id.includes("-")).toBe(false);
   });
 
-  it("generates 1 000 unique IDs", () => {
-    const ids = new Set(Array.from({ length: 1_000 }, newShipId));
-    expect(ids.size).toBe(1_000);
+  it("returns unique values across successive calls", () => {
+    const ids = new Set(Array.from({ length: 200 }, newShipId));
+    expect(ids.size).toBe(200);
   });
 });

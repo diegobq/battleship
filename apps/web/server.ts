@@ -10,14 +10,20 @@ import { TurnTimer } from "@battleship/core";
 import { handleClientMessage } from "@battleship/core";
 import { getHub } from "@battleship/core";
 import { parseClientMessage } from "@battleship/core";
+import {
+  verifyToken,
+  getSessionSecret,
+  extractTokenFromCookies,
+} from "./lib/api/session-token";
+import { createMessageRateLimiter } from "./lib/api/rate-limiter";
+import { env } from "./lib/env";
 
-const PORT = Number(process.env.PORT ?? 3000);
-const HOSTNAME = process.env.HOSTNAME ?? "localhost";
 const WS_PATH = "/api/game/stream";
-const dev = process.env.NODE_ENV !== "production";
+const dev = env.NODE_ENV !== "production";
+const DRAIN_MS = 10_000;
 
 function isOriginAllowed(origin: string | undefined): boolean {
-  const raw = process.env.ALLOWED_ORIGINS ?? "";
+  const raw = env.ALLOWED_ORIGINS ?? "";
   if (dev && !raw) return true; // allow all in development when not explicitly configured
   return raw
     .split(",")
@@ -27,7 +33,8 @@ function isOriginAllowed(origin: string | undefined): boolean {
 }
 
 async function start(): Promise<void> {
-  const app = next({ dev, hostname: HOSTNAME, port: PORT });
+  const sessionSecret = getSessionSecret();
+  const app = next({ dev, hostname: env.HOSTNAME, port: env.PORT });
   await app.prepare();
   const nextHandler = app.getRequestHandler();
 
@@ -40,9 +47,10 @@ async function start(): Promise<void> {
   const turnTimer = new TurnTimer();
   const clock = makeSystemClock();
   const rng = makeSystemRng();
+  let shuttingDown = false;
 
   wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-    onWsConnection(ws, req, { hub, turnTimer, clock, rng });
+    onWsConnection(ws, req, { hub, turnTimer, clock, rng }, sessionSecret);
   });
 
   httpServer.on(
@@ -50,6 +58,11 @@ async function start(): Promise<void> {
     (req: IncomingMessage, socket: Socket, head: Buffer) => {
       const pathname = parse(req.url ?? "/").pathname;
       if (pathname !== WS_PATH) return; // let Next.js HMR handle other upgrades
+      if (shuttingDown) {
+        socket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
+        socket.destroy();
+        return;
+      }
       if (!isOriginAllowed(req.headers.origin)) {
         socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
         socket.destroy();
@@ -61,9 +74,40 @@ async function start(): Promise<void> {
     },
   );
 
-  httpServer.listen(PORT, () => {
-    console.log(`> Battleship server ready on http://${HOSTNAME}:${PORT}`);
+  httpServer.listen(env.PORT, () => {
+    console.log(
+      `> Battleship server ready on http://${env.HOSTNAME}:${env.PORT}`,
+    );
   });
+
+  registerShutdownHandlers(httpServer, hub, () => {
+    shuttingDown = true;
+  });
+}
+
+function registerShutdownHandlers(
+  httpServer: ReturnType<typeof createServer>,
+  hub: ReturnType<typeof getHub>,
+  onShutdown: () => void,
+): void {
+  let shuttingDown = false;
+
+  const shutdown = (): void => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    onShutdown();
+    console.log("> Graceful shutdown initiated…");
+    hub.closeAll();
+    setTimeout(() => {
+      httpServer.close(() => {
+        console.log("> Server closed.");
+        process.exit(0);
+      });
+    }, DRAIN_MS);
+  };
+
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
 }
 
 interface RuntimeDeps {
@@ -77,10 +121,16 @@ function onWsConnection(
   ws: WebSocket,
   req: IncomingMessage,
   deps: RuntimeDeps,
+  sessionSecret: string,
 ): void {
   const { gameId, playerId } = parseConnectionParams(req);
   if (!gameId || !playerId) {
     ws.close(4000, "Missing gameId or playerId.");
+    return;
+  }
+  const token = extractTokenFromCookies(req.headers.cookie, gameId);
+  if (!token || !verifyToken(token, playerId, gameId, sessionSecret)) {
+    ws.close(4003, "Invalid session token.");
     return;
   }
   const game = registry.get(gameId);
@@ -92,7 +142,13 @@ function onWsConnection(
   deps.hub.register(gameId, playerId, ws);
   deps.hub.broadcastState(gameId, game);
 
+  const rateLimiter = createMessageRateLimiter(10, 1_000);
+
   ws.on("message", (raw: Buffer | ArrayBuffer | Buffer[]) => {
+    if (!rateLimiter.check()) {
+      ws.close(4029, "Rate limit exceeded.");
+      return;
+    }
     try {
       const text = Buffer.isBuffer(raw) ? raw.toString("utf8") : raw.toString();
       const msg = parseClientMessage(text);

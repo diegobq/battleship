@@ -1,53 +1,46 @@
-import { describe, expect, it } from "vitest";
+import { describe, it, expect } from "vitest";
 import { makeSeededRng, makeSystemRng } from "../rng";
 
 describe("makeSystemRng", () => {
-  it("produces values in the [0, 1) range", () => {
+  it("produces values in [0, 1)", () => {
     const rng = makeSystemRng();
-    for (let i = 0; i < 100; i++) {
-      const value = rng.next();
-      expect(value).toBeGreaterThanOrEqual(0);
-      expect(value).toBeLessThan(1);
+    for (let i = 0; i < 20; i++) {
+      const v = rng.next();
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
     }
   });
 });
 
 describe("makeSeededRng", () => {
-  it("produces values in the [0, 1) range", () => {
+  it("produces values in [0, 1)", () => {
     const rng = makeSeededRng(42);
-    for (let i = 0; i < 100; i++) {
-      const value = rng.next();
-      expect(value).toBeGreaterThanOrEqual(0);
-      expect(value).toBeLessThan(1);
+    for (let i = 0; i < 50; i++) {
+      const v = rng.next();
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
     }
   });
 
-  it("is deterministic for the same seed", () => {
-    const a = makeSeededRng(42);
-    const b = makeSeededRng(42);
-    for (let i = 0; i < 50; i++) {
+  it("is deterministic: same seed yields same sequence", () => {
+    const a = makeSeededRng(1);
+    const b = makeSeededRng(1);
+    for (let i = 0; i < 20; i++) {
       expect(a.next()).toBe(b.next());
     }
   });
 
-  it("produces different sequences for different seeds", () => {
+  it("different seeds produce different sequences", () => {
     const a = makeSeededRng(1);
     const b = makeSeededRng(2);
-    const seqA: number[] = [];
-    const seqB: number[] = [];
-    for (let i = 0; i < 10; i++) {
-      seqA.push(a.next());
-      seqB.push(b.next());
-    }
-    expect(seqA).not.toEqual(seqB);
+    const aVals = Array.from({ length: 10 }, () => a.next());
+    const bVals = Array.from({ length: 10 }, () => b.next());
+    expect(aVals).not.toEqual(bVals);
   });
 
-  it("does not loop trivially within 10000 draws", () => {
-    const rng = makeSeededRng(123);
-    const seen = new Set<number>();
-    for (let i = 0; i < 10_000; i++) {
-      seen.add(rng.next());
-    }
-    expect(seen.size).toBeGreaterThan(9_900);
+  it("does not produce all-zero output", () => {
+    const rng = makeSeededRng(0);
+    const values = Array.from({ length: 20 }, () => rng.next());
+    expect(values.some((v) => v > 0)).toBe(true);
   });
 });

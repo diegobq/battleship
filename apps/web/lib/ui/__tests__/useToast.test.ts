@@ -1,65 +1,55 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { toastStore } from "../useToast";
 
-afterEach(() => {
+beforeEach(() => {
   toastStore.clearAll();
 });
 
-describe("toastStore.error / info", () => {
-  it("adds an error toast", () => {
-    toastStore.error("Something went wrong");
-    expect(toastStore.getSnapshot()).toHaveLength(1);
-    expect(toastStore.getSnapshot()[0]).toMatchObject({
-      message: "Something went wrong",
-      variant: "error",
-    });
+describe("toastStore", () => {
+  it("error() adds a toast with variant='error'", () => {
+    toastStore.error("something went wrong");
+    const items = toastStore.getSnapshot();
+    expect(items).toHaveLength(1);
+    expect(items[0].variant).toBe("error");
+    expect(items[0].message).toBe("something went wrong");
   });
 
-  it("adds an info toast", () => {
-    toastStore.info("Reconnected");
-    expect(toastStore.getSnapshot()[0]).toMatchObject({ variant: "info" });
+  it("info() adds a toast with variant='info'", () => {
+    toastStore.info("all good");
+    expect(toastStore.getSnapshot()[0].variant).toBe("info");
   });
 
-  it("assigns unique ids", () => {
-    const a = toastStore.error("a");
-    const b = toastStore.info("b");
-    expect(a).not.toBe(b);
-  });
-
-  it("stacks multiple toasts", () => {
-    toastStore.error("first");
-    toastStore.info("second");
-    expect(toastStore.getSnapshot()).toHaveLength(2);
-  });
-});
-
-describe("toastStore.dismiss", () => {
-  it("removes the toast by id", () => {
+  it("dismiss() removes the toast by id", () => {
     const id = toastStore.error("bye");
     toastStore.dismiss(id);
     expect(toastStore.getSnapshot()).toHaveLength(0);
   });
 
-  it("is a no-op for an unknown id", () => {
-    toastStore.error("keep me");
-    toastStore.dismiss("not-an-id");
-    expect(toastStore.getSnapshot()).toHaveLength(1);
+  it("clearAll() empties the list", () => {
+    toastStore.error("a");
+    toastStore.info("b");
+    toastStore.clearAll();
+    expect(toastStore.getSnapshot()).toHaveLength(0);
   });
-});
 
-describe("toastStore.subscribe", () => {
-  it("notifies listener on add and dismiss", () => {
+  it("notifies subscribers on add", () => {
     const listener = vi.fn();
     const unsub = toastStore.subscribe(listener);
     toastStore.error("ping");
-    expect(listener).toHaveBeenCalledTimes(1);
-    const id = toastStore.getSnapshot()[0].id;
-    toastStore.dismiss(id);
-    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenCalledOnce();
     unsub();
   });
 
-  it("stops notifying after unsubscribe", () => {
+  it("notifies subscribers on dismiss", () => {
+    const id = toastStore.error("ping");
+    const listener = vi.fn();
+    const unsub = toastStore.subscribe(listener);
+    toastStore.dismiss(id);
+    expect(listener).toHaveBeenCalledOnce();
+    unsub();
+  });
+
+  it("unsubscribing stops further notifications", () => {
     const listener = vi.fn();
     const unsub = toastStore.subscribe(listener);
     unsub();

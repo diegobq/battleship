@@ -102,7 +102,7 @@ export default function LobbyTable() {
                 className="rounded px-4 py-2 font-semibold disabled:opacity-50"
                 style={{
                   background: "var(--brand-primary)",
-                  color: "var(--surface-fg)",
+                  color: "var(--surface-bg)",
                 }}
               >
                 {joining === g.id ? "Joining…" : "Join"}

@@ -1,103 +1,98 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
+import {
+  getRegistry,
+  __resetRegistryForTests,
+  isRegistryInitialized,
+} from "../registry";
 import { makeFakeClock } from "../../core/clock";
 import { createGame, createPlayer } from "../../core/game";
-import { GameState } from "../../core/types";
-import { __resetRegistryForTests, getRegistry } from "../registry";
+import type { GameState } from "../../core/types";
+
+const CONFIG = {
+  mode: "Classic",
+  fleet: { Submarine: 1 },
+  turnTimerMs: 60_000,
+} as const;
 
 function makeGame(
   id: string,
   status: GameState["status"] = "lobby",
-  playerIds: string[] = ["host"],
 ): GameState {
-  const clock = makeFakeClock(0);
-  const host = createPlayer(playerIds[0], "Host");
-  const base = createGame({
-    id,
-    config: { mode: "Classic", fleet: { Submarine: 1 }, turnTimerMs: 60_000 },
-    host,
-    clock,
-  });
-  const players = playerIds.reduce<
-    Record<string, ReturnType<typeof createPlayer>>
-  >((acc, pid, i) => {
-    acc[pid] = i === 0 ? host : createPlayer(pid, pid);
-    return acc;
-  }, {});
-  return { ...base, status, players };
+  const host = createPlayer("host", "Host");
+  const game = createGame({ id, config: CONFIG, host, clock: makeFakeClock() });
+  return { ...game, status };
 }
 
-beforeEach(() => {
-  __resetRegistryForTests();
-});
+describe("GameRegistry (InMemory)", () => {
+  beforeEach(() => __resetRegistryForTests());
 
-describe("GameRegistry — basic crud", () => {
-  it("creates and retrieves a game", () => {
-    const r = getRegistry();
+  it("create stores a game and get retrieves it", () => {
+    const reg = getRegistry();
     const game = makeGame("g1");
-    r.create(game);
-    expect(r.get("g1")).toEqual(game);
+    reg.create(game);
+    expect(reg.get("g1")).toEqual(game);
   });
 
-  it("throws when creating a duplicate id", () => {
-    const r = getRegistry();
-    r.create(makeGame("g1"));
-    expect(() => r.create(makeGame("g1"))).toThrow(/already exists/);
-  });
-
-  it("returns undefined for an unknown id", () => {
+  it("get returns undefined for an unknown id", () => {
     expect(getRegistry().get("missing")).toBeUndefined();
   });
 
-  it("deletes a game and reports the result", () => {
-    const r = getRegistry();
-    r.create(makeGame("g1"));
-    expect(r.delete("g1")).toBe(true);
-    expect(r.delete("g1")).toBe(false);
-    expect(r.get("g1")).toBeUndefined();
-  });
-});
-
-describe("GameRegistry — update", () => {
-  it("applies an updater function and stores the result", () => {
-    const r = getRegistry();
-    r.create(makeGame("g1"));
-    const out = r.update("g1", (s) => ({ ...s, status: "placement" }));
-    expect(out?.status).toBe("placement");
-    expect(r.get("g1")?.status).toBe("placement");
+  it("create throws if a game with the same id already exists", () => {
+    const reg = getRegistry();
+    reg.create(makeGame("dup"));
+    expect(() => reg.create(makeGame("dup"))).toThrow();
   });
 
-  it("returns undefined for an unknown id", () => {
-    expect(getRegistry().update("missing", (s) => s)).toBeUndefined();
-  });
-});
-
-describe("GameRegistry — listJoinable", () => {
-  it("includes lobby games with one player", () => {
-    const r = getRegistry();
-    r.create(makeGame("joinable", "lobby", ["a"]));
-    r.create(makeGame("placement", "placement", ["a", "b"]));
-    r.create(makeGame("finished", "finished", ["a", "b"]));
-    expect(r.listJoinable().map((g) => g.id)).toEqual(["joinable"]);
+  it("update applies the transform and returns the next state", () => {
+    const reg = getRegistry();
+    reg.create(makeGame("g1"));
+    const updated = reg.update("g1", (g) => ({ ...g, status: "playing" }));
+    expect(updated?.status).toBe("playing");
+    expect(reg.get("g1")?.status).toBe("playing");
   });
 
-  it("excludes lobby games that already have two players (defensive)", () => {
-    const r = getRegistry();
-    r.create(makeGame("full", "lobby", ["a", "b"]));
-    expect(r.listJoinable()).toEqual([]);
-  });
-});
-
-describe("GameRegistry — globalThis singleton", () => {
-  it("pins the registry on globalThis under a shared symbol", () => {
-    const r1 = getRegistry();
-    const r2 = getRegistry();
-    expect(r2).toBe(r1);
+  it("update returns undefined for an unknown id", () => {
+    expect(getRegistry().update("x", (g) => g)).toBeUndefined();
   });
 
-  it("returns a new instance after the test-only reset", () => {
-    const before = getRegistry();
+  it("list returns all stored games", () => {
+    const reg = getRegistry();
+    reg.create(makeGame("g1"));
+    reg.create(makeGame("g2"));
+    expect(reg.list()).toHaveLength(2);
+  });
+
+  it("listJoinable returns only lobby games with one player", () => {
+    const reg = getRegistry();
+    reg.create(makeGame("lobby1", "lobby"));
+    reg.create(makeGame("playing1", "playing"));
+    const joinable = reg.listJoinable();
+    expect(joinable).toHaveLength(1);
+    expect(joinable[0].id).toBe("lobby1");
+  });
+
+  it("delete removes the game and returns true", () => {
+    const reg = getRegistry();
+    reg.create(makeGame("g1"));
+    expect(reg.delete("g1")).toBe(true);
+    expect(reg.get("g1")).toBeUndefined();
+  });
+
+  it("delete returns false for an unknown id", () => {
+    expect(getRegistry().delete("nope")).toBe(false);
+  });
+
+  it("__resetRegistryForTests creates a fresh instance on next getRegistry()", () => {
+    const reg = getRegistry();
+    reg.create(makeGame("g1"));
     __resetRegistryForTests();
-    const after = getRegistry();
-    expect(after).not.toBe(before);
+    expect(getRegistry().get("g1")).toBeUndefined();
+  });
+
+  it("isRegistryInitialized returns true after getRegistry() and false after reset", () => {
+    getRegistry();
+    expect(isRegistryInitialized()).toBe(true);
+    __resetRegistryForTests();
+    expect(isRegistryInitialized()).toBe(false);
   });
 });

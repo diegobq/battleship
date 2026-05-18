@@ -1,188 +1,180 @@
-import { describe, expect, it } from "vitest";
-import { Ship } from "@battleship/core";
+import { describe, it, expect } from "vitest";
 import {
+  placementReducer,
+  initPlacementState,
   allShipsPlaced,
   canPreviewPlacement,
-  initPlacementState,
-  placementReducer,
 } from "../placementReducer";
+import type { Ship } from "@battleship/core";
 
-function makeShip(id: string, length: number): Ship {
-  return { id, type: "Cruiser", length, hits: 0, positions: [], placed: false };
+function makeShip(id: string, length = 2): Ship {
+  return {
+    id,
+    type: "Destroyer",
+    length,
+    hits: 0,
+    positions: [],
+    placed: false,
+  };
 }
 
-const fleet = [makeShip("s1", 2), makeShip("s2", 1)];
+function makeState(ships: Ship[] = [makeShip("s1")]) {
+  return initPlacementState(ships);
+}
 
 describe("initPlacementState", () => {
-  it("returns an empty grid and ships with no placement info", () => {
-    const s = initPlacementState(fleet);
-    expect(s.grid.flat().every((c) => c === "empty")).toBe(true);
-    expect(s.ships).toHaveLength(2);
-    for (const ship of s.ships) {
-      expect(ship.placed).toBe(false);
-      expect(ship.positions).toEqual([]);
-    }
-    expect(s.selectedShipId).toBe("s1");
-    expect(s.orientation).toBe("horizontal");
+  it("selects the first ship automatically", () => {
+    const state = makeState([makeShip("a"), makeShip("b")]);
+    expect(state.selectedShipId).toBe("a");
+  });
+
+  it("resets all ships to unplaced", () => {
+    const placed: Ship = {
+      ...makeShip("s1"),
+      placed: true,
+      positions: [{ r: 0, c: 0 }],
+    };
+    const state = initPlacementState([placed]);
+    expect(state.ships[0].placed).toBe(false);
+    expect(state.ships[0].positions).toEqual([]);
+  });
+
+  it("starts with a blank 8×8 grid", () => {
+    const state = makeState();
+    expect(state.grid).toHaveLength(8);
+    expect(state.grid[0][0]).toBe("empty");
   });
 });
 
 describe("SELECT", () => {
-  it("switches the selected ship", () => {
-    const next = placementReducer(initPlacementState(fleet), {
-      type: "SELECT",
-      shipId: "s2",
-    });
-    expect(next.selectedShipId).toBe("s2");
+  it("updates selectedShipId for a known ship", () => {
+    const state = makeState([makeShip("a"), makeShip("b")]);
+    const next = placementReducer(state, { type: "SELECT", shipId: "b" });
+    expect(next.selectedShipId).toBe("b");
   });
 
-  it("ignores selection of unknown ship ids", () => {
-    const init = initPlacementState(fleet);
-    const next = placementReducer(init, { type: "SELECT", shipId: "ghost" });
-    expect(next).toBe(init);
+  it("is a no-op for an unknown shipId", () => {
+    const state = makeState();
+    const next = placementReducer(state, { type: "SELECT", shipId: "unknown" });
+    expect(next).toBe(state);
   });
 });
 
 describe("ROTATE", () => {
-  it("toggles between horizontal and vertical", () => {
-    const init = initPlacementState(fleet);
-    const a = placementReducer(init, { type: "ROTATE" });
-    expect(a.orientation).toBe("vertical");
-    const b = placementReducer(a, { type: "ROTATE" });
-    expect(b.orientation).toBe("horizontal");
+  it("toggles orientation from horizontal to vertical", () => {
+    const state = makeState();
+    expect(state.orientation).toBe("horizontal");
+    const next = placementReducer(state, { type: "ROTATE" });
+    expect(next.orientation).toBe("vertical");
+  });
+
+  it("toggles back to horizontal on a second ROTATE", () => {
+    let state = makeState();
+    state = placementReducer(state, { type: "ROTATE" });
+    state = placementReducer(state, { type: "ROTATE" });
+    expect(state.orientation).toBe("horizontal");
   });
 });
 
 describe("PLACE", () => {
-  it("places the selected ship and marks the grid", () => {
-    const next = placementReducer(initPlacementState(fleet), {
-      type: "PLACE",
-      r: 0,
-      c: 0,
-    });
+  it("places the selected ship on a valid cell", () => {
+    const state = makeState([makeShip("s1", 2)]);
+    const next = placementReducer(state, { type: "PLACE", r: 0, c: 0 });
+    expect(next.ships[0].placed).toBe(true);
     expect(next.grid[0][0]).toBe("ship");
     expect(next.grid[0][1]).toBe("ship");
-    expect(next.ships[0].placed).toBe(true);
-    expect(next.ships[0].positions).toEqual([
-      { r: 0, c: 0 },
-      { r: 0, c: 1 },
-    ]);
   });
 
-  it("auto-selects the next unplaced ship after placement", () => {
-    const next = placementReducer(initPlacementState(fleet), {
-      type: "PLACE",
-      r: 0,
-      c: 0,
-    });
+  it("advances selectedShipId to the next unplaced ship", () => {
+    const state = makeState([makeShip("s1", 1), makeShip("s2", 1)]);
+    const next = placementReducer(state, { type: "PLACE", r: 0, c: 0 });
     expect(next.selectedShipId).toBe("s2");
   });
 
-  it("rejects placement outside bounds", () => {
-    const init = initPlacementState(fleet);
-    const next = placementReducer(init, { type: "PLACE", r: 0, c: 7 });
-    expect(next.grid).toBe(init.grid);
+  it("sets selectedShipId to null once all ships are placed", () => {
+    const state = makeState([makeShip("s1", 1)]);
+    const next = placementReducer(state, { type: "PLACE", r: 0, c: 0 });
+    expect(next.selectedShipId).toBeNull();
+  });
+
+  it("is a no-op when placement would go out of bounds", () => {
+    const state = makeState([makeShip("s1", 3)]);
+    const next = placementReducer(state, { type: "PLACE", r: 0, c: 7 }); // 3-cell ship at col 7 is OOB
     expect(next.ships[0].placed).toBe(false);
   });
 
-  it("rejects placement that would collide with another ship", () => {
-    const a = placementReducer(initPlacementState(fleet), {
-      type: "PLACE",
-      r: 0,
-      c: 0,
-    });
-    const b = placementReducer(a, { type: "PLACE", r: 0, c: 1 });
-    expect(b).toBe(a);
+  it("is a no-op when placement would collide with an existing ship", () => {
+    let state = makeState([makeShip("s1", 1), makeShip("s2", 1)]);
+    state = placementReducer(state, { type: "PLACE", r: 0, c: 0 });
+    const next = placementReducer(state, { type: "PLACE", r: 0, c: 0 }); // collision
+    expect(next.ships[1].placed).toBe(false);
   });
 
-  it("does nothing when no ship is selected", () => {
-    const init = initPlacementState(fleet);
-    const noSelect = placementReducer(init, {
-      type: "SELECT",
-      shipId: "ghost",
-    });
-    const stateWithNoSelection = { ...noSelect, selectedShipId: null };
-    const next = placementReducer(stateWithNoSelection, {
-      type: "PLACE",
-      r: 0,
-      c: 0,
-    });
-    expect(next).toBe(stateWithNoSelection);
+  it("is a no-op when no ship is selected", () => {
+    let state = makeState([makeShip("s1", 1)]);
+    state = { ...state, selectedShipId: null };
+    const next = placementReducer(state, { type: "PLACE", r: 0, c: 0 });
+    expect(next).toBe(state);
   });
 });
 
 describe("REMOVE", () => {
-  it("removes a placed ship and clears its grid cells", () => {
-    let s = placementReducer(initPlacementState(fleet), {
-      type: "PLACE",
-      r: 0,
-      c: 0,
-    });
-    s = placementReducer(s, { type: "PLACE", r: 2, c: 0 });
-    expect(s.ships.every((sh) => sh.placed)).toBe(true);
-    const removed = placementReducer(s, { type: "REMOVE", shipId: "s1" });
-    expect(removed.ships[0].placed).toBe(false);
-    expect(removed.grid[0][0]).toBe("empty");
-    expect(removed.grid[2][0]).toBe("ship"); // other ship still placed
+  it("unplaces the ship and clears its cells from the grid", () => {
+    let state = makeState([makeShip("s1", 1)]);
+    state = placementReducer(state, { type: "PLACE", r: 0, c: 0 });
+    const next = placementReducer(state, { type: "REMOVE", shipId: "s1" });
+    expect(next.ships[0].placed).toBe(false);
+    expect(next.grid[0][0]).toBe("empty");
   });
 
-  it("is a no-op for an unplaced ship", () => {
-    const init = initPlacementState(fleet);
-    const next = placementReducer(init, { type: "REMOVE", shipId: "s1" });
-    expect(next).toBe(init);
+  it("is a no-op for a ship that is not placed", () => {
+    const state = makeState([makeShip("s1", 1)]);
+    const next = placementReducer(state, { type: "REMOVE", shipId: "s1" });
+    expect(next).toBe(state);
   });
 });
 
 describe("RESET", () => {
-  it("returns to the initial state", () => {
-    let s = placementReducer(initPlacementState(fleet), {
-      type: "PLACE",
-      r: 0,
-      c: 0,
-    });
-    s = placementReducer(s, { type: "ROTATE" });
-    const reset = placementReducer(s, { type: "RESET" });
-    expect(reset.grid.flat().every((c) => c === "empty")).toBe(true);
-    expect(reset.orientation).toBe("horizontal");
-    expect(reset.selectedShipId).toBe("s1");
-  });
-});
-
-describe("canPreviewPlacement", () => {
-  it("returns true for a valid placement", () => {
-    expect(canPreviewPlacement(initPlacementState(fleet), 0, 0)).toBe(true);
-  });
-
-  it("returns false when the placement would be illegal", () => {
-    expect(canPreviewPlacement(initPlacementState(fleet), 0, 7)).toBe(false);
-  });
-
-  it("returns false when the selected ship is already placed", () => {
-    const placed = placementReducer(initPlacementState(fleet), {
-      type: "PLACE",
-      r: 0,
-      c: 0,
-    });
-    const reselected = placementReducer(placed, {
-      type: "SELECT",
-      shipId: "s1",
-    });
-    expect(canPreviewPlacement(reselected, 5, 0)).toBe(false);
+  it("clears all ships and resets the grid", () => {
+    let state = makeState([makeShip("s1", 1)]);
+    state = placementReducer(state, { type: "PLACE", r: 0, c: 0 });
+    const next = placementReducer(state, { type: "RESET" });
+    expect(next.ships[0].placed).toBe(false);
+    expect(next.grid[0][0]).toBe("empty");
   });
 });
 
 describe("allShipsPlaced", () => {
-  it("is false initially", () => {
-    expect(allShipsPlaced(initPlacementState(fleet))).toBe(false);
+  it("returns true when every ship is placed", () => {
+    let state = makeState([makeShip("s1", 1)]);
+    state = placementReducer(state, { type: "PLACE", r: 0, c: 0 });
+    expect(allShipsPlaced(state)).toBe(true);
   });
 
-  it("is true after every ship has been placed", () => {
-    let s = placementReducer(initPlacementState(fleet), {
-      type: "PLACE",
-      r: 0,
-      c: 0,
-    });
-    s = placementReducer(s, { type: "PLACE", r: 2, c: 0 });
-    expect(allShipsPlaced(s)).toBe(true);
+  it("returns false while any ship is unplaced", () => {
+    expect(allShipsPlaced(makeState([makeShip("s1", 1)]))).toBe(false);
+  });
+
+  it("returns false for an empty fleet", () => {
+    expect(allShipsPlaced(initPlacementState([]))).toBe(false);
+  });
+});
+
+describe("canPreviewPlacement", () => {
+  it("returns true for a valid cell with the selected ship", () => {
+    const state = makeState([makeShip("s1", 1)]);
+    expect(canPreviewPlacement(state, 0, 0)).toBe(true);
+  });
+
+  it("returns false when no ship is selected", () => {
+    const state = { ...makeState([makeShip("s1", 1)]), selectedShipId: null };
+    expect(canPreviewPlacement(state, 0, 0)).toBe(false);
+  });
+
+  it("returns false when the selected ship is already placed", () => {
+    let state = makeState([makeShip("s1", 1)]);
+    state = placementReducer(state, { type: "PLACE", r: 0, c: 0 });
+    state = { ...state, selectedShipId: "s1" };
+    expect(canPreviewPlacement(state, 3, 3)).toBe(false);
   });
 });

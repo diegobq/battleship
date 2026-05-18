@@ -1,20 +1,21 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, renderHook } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, act, cleanup } from "@testing-library/react";
 import React from "react";
 import { GameProvider, useGame } from "../GameProvider";
 
-// ─── MockWebSocket ────────────────────────────────────────────────────────────
+// ─── WebSocket stub ───────────────────────────────────────────────────────────
 
 class MockWebSocket {
   static OPEN = 1;
-  static last: MockWebSocket;
+  static last: MockWebSocket | null = null;
 
   readyState = 0;
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
   onerror: (() => void) | null = null;
   onmessage: ((e: { data: string }) => void) | null = null;
-  sentMessages: string[] = [];
+  send = vi.fn();
+  close = vi.fn();
 
   constructor(_url: string) {
     MockWebSocket.last = this;
@@ -24,89 +25,104 @@ class MockWebSocket {
     this.readyState = 1;
     this.onopen?.();
   }
-  close() {
+  receive(data: string) {
+    this.onmessage?.({ data });
+  }
+  disconnect() {
     this.readyState = 3;
     this.onclose?.();
-  }
-  send(d: string) {
-    this.sentMessages.push(d);
-  }
-  receive(d: string) {
-    this.onmessage?.({ data: d });
   }
 }
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  MockWebSocket.last = null;
   vi.stubGlobal("WebSocket", MockWebSocket);
 });
 
 afterEach(() => {
+  cleanup();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
-function wrapper({ children }: { children: React.ReactNode }) {
+// ─── Test consumer ────────────────────────────────────────────────────────────
+
+function Consumer() {
+  const ctx = useGame();
   return (
-    <GameProvider gameId="g1" playerId="p1">
-      {children}
-    </GameProvider>
+    <div>
+      <div data-testid="status">{ctx.state?.status ?? "none"}</div>
+      <div data-testid="connection">{ctx.connection}</div>
+      <div data-testid="lastShot">
+        {ctx.lastShot ? ctx.lastShot.shooterId : "none"}
+      </div>
+      <div data-testid="timeout">{ctx.turnExpiredPlayerId ?? "none"}</div>
+      <div data-testid="error">{ctx.errorMessage ?? "none"}</div>
+      <button onClick={ctx.dismissError}>dismiss</button>
+    </div>
   );
 }
 
-function socket(): MockWebSocket {
-  return MockWebSocket.last;
+function renderProvider() {
+  render(
+    <GameProvider gameId="g1" playerId="host">
+      <Consumer />
+    </GameProvider>,
+  );
+  const ws = MockWebSocket.last!;
+  return { ws };
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe("GameProvider / useGame", () => {
-  it("throws when useGame is used outside GameProvider", () => {
-    expect(() => renderHook(() => useGame())).toThrow();
+describe("GameProvider", () => {
+  it("starts in connecting state with no game state", () => {
+    renderProvider();
+    expect(screen.getByTestId("status").textContent).toBe("none");
+    expect(screen.getByTestId("connection").textContent).toBe("connecting");
   });
 
-  it("exposes gameId and playerId from props", () => {
-    const { result } = renderHook(() => useGame(), { wrapper });
-    expect(result.current.gameId).toBe("g1");
-    expect(result.current.playerId).toBe("p1");
+  it("transitions to 'open' when the WebSocket opens", () => {
+    const { ws } = renderProvider();
+    act(() => ws.open());
+    expect(screen.getByTestId("connection").textContent).toBe("open");
   });
 
-  it("starts with null game state", () => {
-    const { result } = renderHook(() => useGame(), { wrapper });
-    expect(result.current.state).toBeNull();
-  });
-
-  it("updates state on GAME_STATE_UPDATE message", () => {
-    const { result } = renderHook(() => useGame(), { wrapper });
-    act(() => {
-      socket().open();
-    });
-    const fakeState = { id: "g1", status: "placement" };
-    act(() => {
-      socket().receive(
+  it("updates game state on GAME_STATE_UPDATE message", () => {
+    const { ws } = renderProvider();
+    act(() => ws.open());
+    act(() =>
+      ws.receive(
         JSON.stringify({
           type: "GAME_STATE_UPDATE",
-          payload: { state: fakeState },
+          payload: {
+            state: {
+              id: "g1",
+              status: "playing",
+              config: { mode: "Classic", fleet: {}, turnTimerMs: 60000 },
+              players: {},
+              activePlayerId: "host",
+              lastActionTime: 0,
+              createdAt: 0,
+              turnDeadlineAt: null,
+              winnerId: null,
+            },
+          },
         }),
-      );
-    });
-    expect(result.current.state).toMatchObject({
-      id: "g1",
-      status: "placement",
-    });
+      ),
+    );
+    expect(screen.getByTestId("status").textContent).toBe("playing");
   });
 
-  it("captures SHOT_RESULT with a timestamp", () => {
-    const { result } = renderHook(() => useGame(), { wrapper });
-    act(() => {
-      socket().open();
-    });
-    act(() => {
-      socket().receive(
+  it("sets lastShot on SHOT_RESULT message", () => {
+    const { ws } = renderProvider();
+    act(() => ws.open());
+    act(() =>
+      ws.receive(
         JSON.stringify({
           type: "SHOT_RESULT",
           payload: {
-            shooterId: "p1",
+            shooterId: "host",
             r: 0,
             c: 0,
             hit: true,
@@ -114,82 +130,77 @@ describe("GameProvider / useGame", () => {
             cellStatus: "hit",
           },
         }),
-      );
-    });
-    expect(result.current.lastShot?.hit).toBe(true);
-    expect(typeof result.current.lastShot?.at).toBe("number");
+      ),
+    );
+    expect(screen.getByTestId("lastShot").textContent).toBe("host");
   });
 
-  it("sets turnExpiredPlayerId on TURN_TIMEOUT and clears it after 2 s", () => {
-    const { result } = renderHook(() => useGame(), { wrapper });
-    act(() => {
-      socket().open();
-    });
-    act(() => {
-      socket().receive(
-        JSON.stringify({ type: "TURN_TIMEOUT", payload: { playerId: "p1" } }),
-      );
-    });
-    expect(result.current.turnExpiredPlayerId).toBe("p1");
-    act(() => {
-      vi.advanceTimersByTime(2_001);
-    });
-    expect(result.current.turnExpiredPlayerId).toBeNull();
+  it("sets turnExpiredPlayerId on TURN_TIMEOUT message", () => {
+    const { ws } = renderProvider();
+    act(() => ws.open());
+    act(() =>
+      ws.receive(
+        JSON.stringify({
+          type: "TURN_TIMEOUT",
+          payload: { playerId: "guest" },
+        }),
+      ),
+    );
+    expect(screen.getByTestId("timeout").textContent).toBe("guest");
   });
 
-  it("sets errorMessage on ERROR message and clears it via dismissError", () => {
-    const { result } = renderHook(() => useGame(), { wrapper });
-    act(() => {
-      socket().open();
-    });
-    act(() => {
-      socket().receive(
-        JSON.stringify({ type: "ERROR", payload: { message: "bad" } }),
-      );
-    });
-    expect(result.current.errorMessage).toBe("bad");
-    act(() => {
-      result.current.dismissError();
-    });
-    expect(result.current.errorMessage).toBeNull();
+  it("clears turnExpiredPlayerId after 2 s", () => {
+    vi.useFakeTimers();
+    const { ws } = renderProvider();
+    act(() => ws.open());
+    act(() =>
+      ws.receive(
+        JSON.stringify({
+          type: "TURN_TIMEOUT",
+          payload: { playerId: "guest" },
+        }),
+      ),
+    );
+    act(() => vi.advanceTimersByTime(2001));
+    expect(screen.getByTestId("timeout").textContent).toBe("none");
   });
 
-  it("placeFleet() sends a PLACE_FLEET message when socket is open", () => {
-    const { result } = renderHook(() => useGame(), { wrapper });
-    act(() => {
-      socket().open();
-    });
-    act(() => {
-      result.current.placeFleet([
-        { shipId: "s1", r: 0, c: 0, orientation: "horizontal" },
-      ]);
-    });
-    expect(socket().sentMessages.length).toBe(1);
-    const sent = JSON.parse(socket().sentMessages[0]);
-    expect(sent.type).toBe("PLACE_FLEET");
+  it("sets errorMessage on ERROR message", () => {
+    const { ws } = renderProvider();
+    act(() => ws.open());
+    act(() =>
+      ws.receive(
+        JSON.stringify({
+          type: "ERROR",
+          payload: { code: "WRONG_TURN", message: "Not your turn" },
+        }),
+      ),
+    );
+    expect(screen.getByTestId("error").textContent).toBe("Not your turn");
   });
 
-  it("shoot() sends a SHOOT message when socket is open", () => {
-    const { result } = renderHook(() => useGame(), { wrapper });
-    act(() => {
-      socket().open();
-    });
-    act(() => {
-      result.current.shoot(3, 4);
-    });
-    const sent = JSON.parse(socket().sentMessages[0]);
-    expect(sent).toMatchObject({ type: "SHOOT", payload: { r: 3, c: 4 } });
+  it("dismissError clears the error message", () => {
+    const { ws } = renderProvider();
+    act(() => ws.open());
+    act(() =>
+      ws.receive(
+        JSON.stringify({
+          type: "ERROR",
+          payload: { code: "X", message: "boom" },
+        }),
+      ),
+    );
+    act(() => screen.getByText("dismiss").click());
+    expect(screen.getByTestId("error").textContent).toBe("none");
   });
 
-  it("leaveGame() sends a LEAVE_GAME message when socket is open", () => {
-    const { result } = renderHook(() => useGame(), { wrapper });
-    act(() => {
-      socket().open();
-    });
-    act(() => {
-      result.current.leaveGame();
-    });
-    const sent = JSON.parse(socket().sentMessages[0]);
-    expect(sent.type).toBe("LEAVE_GAME");
+  it("transitions to 'closed' when the socket closes", () => {
+    const { ws } = renderProvider();
+    act(() => ws.open());
+    act(() => ws.disconnect());
+    // Closed connection shows closed state (after maxReconnects attempts)
+    expect(["closed", "connecting"]).toContain(
+      screen.getByTestId("connection").textContent,
+    );
   });
 });

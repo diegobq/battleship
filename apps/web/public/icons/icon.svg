@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#0f172a"/>
+
+  <!-- Ocean -->
+  <path d="M 40 396 Q 128 380 216 396 Q 304 412 392 396 Q 440 388 472 396 L 472 460 L 40 460 Z" fill="#0c4a6e"/>
+
+  <!-- Hull -->
+  <path d="M 70 346 L 108 308 L 420 308 L 450 346 L 436 392 L 76 392 Z" fill="#94a3b8"/>
+
+  <!-- Forward gun barrel -->
+  <rect x="46" y="296" width="106" height="14" rx="5" fill="#cbd5e1"/>
+
+  <!-- Aft gun barrel -->
+  <rect x="360" y="296" width="106" height="14" rx="5" fill="#cbd5e1"/>
+
+  <!-- Superstructure -->
+  <rect x="168" y="238" width="176" height="70" rx="6" fill="#cbd5e1"/>
+
+  <!-- Bridge -->
+  <rect x="214" y="178" width="84" height="60" rx="6" fill="#e2e8f0"/>
+
+  <!-- Mast -->
+  <rect x="252" y="96" width="8" height="82" rx="3" fill="#f1f5f9"/>
+</svg>

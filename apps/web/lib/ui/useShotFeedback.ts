@@ -3,19 +3,37 @@ import { useCallback } from "react";
 
 const SFX_KEY = "bs-sfx";
 
-function isSfxEnabled(): boolean {
+function shouldPlay(): boolean {
   if (typeof window === "undefined") return false;
-  return localStorage.getItem(SFX_KEY) !== "off";
+  return (
+    sessionStorage.getItem(SFX_KEY) === "on" &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 }
 
-function isReducedMotion(): boolean {
-  if (typeof window === "undefined") return true;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let _ctx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+  if (!_ctx) _ctx = new AudioContext();
+  if (_ctx.state === "suspended") _ctx.resume();
+  return _ctx;
 }
 
-function playSound(type: "hit" | "miss" | "sunk") {
-  const audio = new Audio(`/sounds/${type}.ogg`);
-  audio.play().catch(() => {});
+function synth(frequency: number, duration = 0.25) {
+  const ctx = getAudioContext();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.frequency.value = frequency;
+  gain.gain.setValueAtTime(0.25, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + duration);
+}
+
+function playShot(type: "hit" | "miss" | "sunk") {
+  synth(type === "hit" ? 880 : type === "miss" ? 220 : 660);
 }
 
 function vibrate(pattern: number | number[]) {
@@ -25,14 +43,18 @@ function vibrate(pattern: number | number[]) {
 export function useShotFeedback() {
   const onShot = useCallback(
     ({ hit, sunk }: { hit: boolean; sunk: boolean }) => {
-      if (!isSfxEnabled() || isReducedMotion()) return;
-      const type = sunk ? "sunk" : hit ? "hit" : "miss";
-      playSound(type);
+      if (!shouldPlay()) return;
+      playShot(sunk ? "sunk" : hit ? "hit" : "miss");
       if (sunk) vibrate([20, 40, 20]);
       else if (hit) vibrate(50);
     },
     [],
   );
 
-  return { onShot };
+  const onTurnStart = useCallback(() => {
+    if (!shouldPlay()) return;
+    synth(1047, 0.3);
+  }, []);
+
+  return { onShot, onTurnStart };
 }

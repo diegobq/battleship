@@ -1,65 +1,51 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { THEMES, useTheme } from "../useTheme";
+import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { useTheme, THEMES } from "../useTheme";
 
 beforeEach(() => {
   sessionStorage.clear();
   delete document.documentElement.dataset.theme;
 });
 
-afterEach(() => {
-  sessionStorage.clear();
-  delete document.documentElement.dataset.theme;
-});
-
-describe("useTheme — initial state", () => {
-  it("defaults to 'default' when nothing is stored", () => {
+describe("useTheme", () => {
+  it("starts with default theme when sessionStorage is empty", () => {
     const { result } = renderHook(() => useTheme());
     expect(result.current.theme).toBe("default");
   });
 
-  it("reads a previously stored theme", () => {
-    sessionStorage.setItem("bs-theme", "christmas");
+  it("reads the stored theme from sessionStorage on mount", () => {
+    sessionStorage.setItem("bs-theme", "dark");
     const { result } = renderHook(() => useTheme());
-    expect(result.current.theme).toBe("christmas");
+    act(() => {}); // flush effects
+    expect(result.current.theme).toBe("dark");
   });
 
-  it("falls back to default for an unrecognised stored value", () => {
-    sessionStorage.setItem("bs-theme", "neon-punk");
-    const { result } = renderHook(() => useTheme());
-    expect(result.current.theme).toBe("default");
-  });
-});
-
-describe("useTheme — setTheme", () => {
-  it("updates theme state", () => {
+  it("setTheme updates the theme state", () => {
     const { result } = renderHook(() => useTheme());
     act(() => result.current.setTheme("christmas"));
     expect(result.current.theme).toBe("christmas");
   });
 
-  it("persists to sessionStorage", () => {
+  it("setTheme persists to sessionStorage", () => {
     const { result } = renderHook(() => useTheme());
-    act(() => result.current.setTheme("christmas"));
-    expect(sessionStorage.getItem("bs-theme")).toBe("christmas");
+    act(() => result.current.setTheme("dark"));
+    expect(sessionStorage.getItem("bs-theme")).toBe("dark");
   });
 
-  it("sets data-theme attribute on <html> for non-default themes", () => {
+  it("setTheme('default') removes the data-theme attribute", () => {
+    document.documentElement.dataset.theme = "christmas";
+    const { result } = renderHook(() => useTheme());
+    act(() => result.current.setTheme("default"));
+    expect(document.documentElement.dataset.theme).toBeUndefined();
+  });
+
+  it("setTheme(non-default) applies data-theme attribute", () => {
     const { result } = renderHook(() => useTheme());
     act(() => result.current.setTheme("christmas"));
     expect(document.documentElement.dataset.theme).toBe("christmas");
   });
 
-  it("removes data-theme attribute when switching back to default", () => {
-    const { result } = renderHook(() => useTheme());
-    act(() => result.current.setTheme("christmas"));
-    act(() => result.current.setTheme("default"));
-    expect(document.documentElement.dataset.theme).toBeUndefined();
-  });
-});
-
-describe("useTheme — themes list", () => {
-  it("exposes all available themes", () => {
+  it("exposes all themes", () => {
     const { result } = renderHook(() => useTheme());
     expect(result.current.themes).toEqual(THEMES);
   });

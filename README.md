@@ -46,8 +46,10 @@ pnpm start    # serve the production build
 ## Test
 
 ```bash
-pnpm test               # run all Vitest unit tests
-pnpm test --coverage    # run tests with V8 coverage report
+pnpm test                                  # run all Vitest unit + integration tests
+pnpm test --coverage                       # run tests with V8 coverage report
+pnpm -F @battleship/web test:a11y          # run Playwright accessibility tests (requires Chrome)
+pnpm -F @battleship/web test:a11y:ui       # open Playwright UI for interactive a11y debugging
 ```
 
 ## Lint
@@ -55,6 +57,23 @@ pnpm test --coverage    # run tests with V8 coverage report
 ```bash
 pnpm lint
 ```
+
+## Bundle analysis
+
+```bash
+pnpm -F @battleship/web analyze
+```
+
+## Lighthouse audit
+
+Requires the dev or production server to be running first:
+
+```bash
+pnpm dev                          # in one terminal
+pnpm -F @battleship/web lighthouse  # in another
+```
+
+Report is written to `apps/web/.lighthouse/report.html`.
 
 ---
 
@@ -71,4 +90,4 @@ pnpm lint
 
 ## Production Readiness
 
-A catalogue of gaps outside the assessment scope (i18n, observability, security headers, CI/CD, etc.) with priorities and recommended approaches: [PRODUCTION-CHECKLIST.md](PRODUCTION-CHECKLIST.md).
+Intentional gaps outside the assessment scope (i18n, observability, security headers, CI/CD, etc.) are documented with their trade-off rationale in [MVP-SCOPE.md](MVP-SCOPE.md).

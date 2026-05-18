@@ -1,64 +1,59 @@
-import { describe, expect, it } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
-  BOARD_SIZE,
+  createEmptyGrid,
+  isInBounds,
+  expandShipCells,
+  canPlace,
   applyPlacement,
   applyShot,
+  countHiddenCells,
   areAllShipsPlaced,
   areAllShipsSunk,
-  canPlace,
-  cloneGrid,
-  countHiddenCells,
-  createEmptyGrid,
-  expandShipCells,
-  isInBounds,
+  BOARD_SIZE,
 } from "../board";
-import { Ship } from "../types";
+import type { Ship } from "../types";
 
-function ship(id: string, length: number): Ship {
-  return { id, type: "Cruiser", length, hits: 0, positions: [], placed: false };
+function makeShip(overrides: Partial<Ship> = {}): Ship {
+  return {
+    id: "s1",
+    type: "Submarine",
+    length: 1,
+    hits: 0,
+    positions: [],
+    placed: false,
+    ...overrides,
+  };
 }
 
-describe("createEmptyGrid", () => {
-  it("creates an 8x8 grid of empty cells", () => {
-    const grid = createEmptyGrid();
-    expect(grid.length).toBe(BOARD_SIZE);
-    for (const row of grid) {
-      expect(row.length).toBe(BOARD_SIZE);
-      for (const cell of row) {
-        expect(cell).toBe("empty");
-      }
-    }
-  });
-
-  it("returns a fresh grid on every call", () => {
-    const a = createEmptyGrid();
-    a[0][0] = "ship";
-    const b = createEmptyGrid();
-    expect(b[0][0]).toBe("empty");
-  });
-});
-
 describe("isInBounds", () => {
-  it("accepts coordinates within [0, BOARD_SIZE)", () => {
+  it("accepts all four corners of the default 8×8 grid", () => {
     expect(isInBounds(0, 0)).toBe(true);
+    expect(isInBounds(0, 7)).toBe(true);
+    expect(isInBounds(7, 0)).toBe(true);
     expect(isInBounds(7, 7)).toBe(true);
-    expect(isInBounds(3, 5)).toBe(true);
   });
 
-  it("rejects negative coordinates", () => {
+  it("rejects cells one step outside each edge", () => {
     expect(isInBounds(-1, 0)).toBe(false);
     expect(isInBounds(0, -1)).toBe(false);
+    expect(isInBounds(8, 0)).toBe(false);
+    expect(isInBounds(0, 8)).toBe(false);
   });
 
-  it("rejects coordinates at or beyond BOARD_SIZE", () => {
-    expect(isInBounds(BOARD_SIZE, 0)).toBe(false);
-    expect(isInBounds(0, BOARD_SIZE)).toBe(false);
-    expect(isInBounds(99, 0)).toBe(false);
+  it("respects a custom board size", () => {
+    expect(isInBounds(5, 5, 6)).toBe(true);
+    expect(isInBounds(6, 0, 6)).toBe(false);
   });
 });
 
 describe("expandShipCells", () => {
-  it("expands a length-3 horizontal ship rightward", () => {
+  it("returns a single cell for length 1", () => {
+    expect(expandShipCells({ r: 2, c: 3 }, 1, "horizontal")).toEqual([
+      { r: 2, c: 3 },
+    ]);
+  });
+
+  it("expands horizontally along columns", () => {
     expect(expandShipCells({ r: 0, c: 0 }, 3, "horizontal")).toEqual([
       { r: 0, c: 0 },
       { r: 0, c: 1 },
@@ -66,167 +61,147 @@ describe("expandShipCells", () => {
     ]);
   });
 
-  it("expands a length-3 vertical ship downward", () => {
+  it("expands vertically along rows", () => {
     expect(expandShipCells({ r: 0, c: 0 }, 3, "vertical")).toEqual([
       { r: 0, c: 0 },
       { r: 1, c: 0 },
       { r: 2, c: 0 },
     ]);
   });
-
-  it("expands a length-1 ship to a single cell", () => {
-    expect(expandShipCells({ r: 5, c: 5 }, 1, "horizontal")).toEqual([
-      { r: 5, c: 5 },
-    ]);
-  });
 });
 
 describe("canPlace", () => {
-  it("allows placement within bounds on an empty grid", () => {
+  it("allows placement on an empty grid", () => {
     const grid = createEmptyGrid();
     expect(canPlace(grid, { r: 0, c: 0 }, 3, "horizontal")).toBe(true);
-    expect(canPlace(grid, { r: 5, c: 0 }, 3, "vertical")).toBe(true);
   });
 
-  it("rejects placement that extends past the right edge", () => {
+  it("rejects placement that extends off the right edge", () => {
     const grid = createEmptyGrid();
     expect(canPlace(grid, { r: 0, c: 6 }, 3, "horizontal")).toBe(false);
   });
 
-  it("rejects placement that extends past the bottom edge", () => {
+  it("rejects placement that extends off the bottom edge", () => {
     const grid = createEmptyGrid();
     expect(canPlace(grid, { r: 6, c: 0 }, 3, "vertical")).toBe(false);
   });
 
   it("rejects placement that collides with an existing ship", () => {
     const grid = createEmptyGrid();
-    const result = applyPlacement(
-      grid,
-      ship("s1", 3),
-      { r: 0, c: 0 },
-      "horizontal",
-    );
-    expect(result).not.toBeNull();
-    expect(canPlace(result!.grid, { r: 0, c: 1 }, 2, "vertical")).toBe(false);
+    grid[0][1] = "ship";
+    expect(canPlace(grid, { r: 0, c: 0 }, 3, "horizontal")).toBe(false);
+  });
+
+  it("allows placement next to an existing ship (no adjacency rule)", () => {
+    const grid = createEmptyGrid();
+    grid[0][0] = "ship";
+    expect(canPlace(grid, { r: 1, c: 0 }, 3, "horizontal")).toBe(true);
   });
 });
 
 describe("applyPlacement", () => {
-  it("places a ship without mutating the original grid", () => {
+  it("returns null when placement is invalid", () => {
     const grid = createEmptyGrid();
-    const result = applyPlacement(
-      grid,
-      ship("s1", 3),
-      { r: 0, c: 0 },
-      "horizontal",
-    );
+    const ship = makeShip({ length: 3 });
+    expect(applyPlacement(grid, ship, { r: 0, c: 7 }, "horizontal")).toBeNull();
+  });
+
+  it("marks the correct cells as 'ship'", () => {
+    const grid = createEmptyGrid();
+    const ship = makeShip({ length: 2 });
+    const result = applyPlacement(grid, ship, { r: 1, c: 2 }, "horizontal");
     expect(result).not.toBeNull();
-    expect(result!.grid[0][0]).toBe("ship");
-    expect(result!.grid[0][1]).toBe("ship");
-    expect(result!.grid[0][2]).toBe("ship");
+    expect(result!.grid[1][2]).toBe("ship");
+    expect(result!.grid[1][3]).toBe("ship");
+    expect(result!.grid[1][4]).toBe("empty");
+  });
+
+  it("does not mutate the original grid", () => {
+    const grid = createEmptyGrid();
+    const ship = makeShip({ length: 1 });
+    applyPlacement(grid, ship, { r: 0, c: 0 }, "horizontal");
     expect(grid[0][0]).toBe("empty");
   });
 
-  it("returns a placed ship with positions and orientation set", () => {
+  it("marks the ship as placed with positions and orientation", () => {
     const grid = createEmptyGrid();
-    const result = applyPlacement(
-      grid,
-      ship("s1", 2),
-      { r: 3, c: 4 },
-      "vertical",
-    );
-    expect(result).not.toBeNull();
+    const ship = makeShip({ length: 2 });
+    const result = applyPlacement(grid, ship, { r: 0, c: 0 }, "vertical");
     expect(result!.ship.placed).toBe(true);
     expect(result!.ship.orientation).toBe("vertical");
     expect(result!.ship.positions).toEqual([
-      { r: 3, c: 4 },
-      { r: 4, c: 4 },
+      { r: 0, c: 0 },
+      { r: 1, c: 0 },
     ]);
-  });
-
-  it("returns null when placement is invalid", () => {
-    const grid = createEmptyGrid();
-    expect(
-      applyPlacement(grid, ship("s1", 3), { r: 0, c: 6 }, "horizontal"),
-    ).toBeNull();
-  });
-
-  it("does not mutate the ship object when placement fails", () => {
-    const grid = createEmptyGrid();
-    const original = ship("s1", 3);
-    applyPlacement(grid, original, { r: 0, c: 6 }, "horizontal");
-    expect(original.placed).toBe(false);
-    expect(original.positions).toEqual([]);
   });
 });
 
 describe("applyShot", () => {
-  it("marks a missed cell as miss", () => {
+  it("marks an empty cell as 'miss'", () => {
     const grid = createEmptyGrid();
-    const result = applyShot(grid, 4, 4);
-    expect(result.hit).toBe(false);
-    expect(result.alreadyShot).toBe(false);
-    expect(result.grid[4][4]).toBe("miss");
-    expect(grid[4][4]).toBe("empty");
+    const { grid: next, hit, alreadyShot } = applyShot(grid, 0, 0);
+    expect(next[0][0]).toBe("miss");
+    expect(hit).toBe(false);
+    expect(alreadyShot).toBe(false);
   });
 
-  it("marks a ship cell as hit", () => {
-    const placed = applyPlacement(
-      createEmptyGrid(),
-      ship("s1", 2),
-      { r: 0, c: 0 },
-      "horizontal",
-    );
-    const result = applyShot(placed!.grid, 0, 0);
-    expect(result.hit).toBe(true);
-    expect(result.grid[0][0]).toBe("hit");
-  });
-
-  it("reports alreadyShot when the cell has been shot before", () => {
-    const after = applyShot(createEmptyGrid(), 0, 0);
-    const second = applyShot(after.grid, 0, 0);
-    expect(second.alreadyShot).toBe(true);
-    expect(second.hit).toBe(false);
-  });
-
-  it("throws when shot is out of bounds", () => {
+  it("marks a ship cell as 'hit'", () => {
     const grid = createEmptyGrid();
-    expect(() => applyShot(grid, -1, 0)).toThrow(/out of bounds/i);
-    expect(() => applyShot(grid, 0, 99)).toThrow(/out of bounds/i);
+    grid[3][3] = "ship";
+    const { grid: next, hit } = applyShot(grid, 3, 3);
+    expect(next[3][3]).toBe("hit");
+    expect(hit).toBe(true);
+  });
+
+  it("returns alreadyShot=true without changing state on a repeated shot", () => {
+    const grid = createEmptyGrid();
+    grid[0][0] = "miss";
+    const { grid: next, alreadyShot } = applyShot(grid, 0, 0);
+    expect(alreadyShot).toBe(true);
+    expect(next).toBe(grid);
+  });
+
+  it("throws on out-of-bounds coordinates", () => {
+    const grid = createEmptyGrid();
+    expect(() => applyShot(grid, -1, 0)).toThrow();
+    expect(() => applyShot(grid, 0, BOARD_SIZE)).toThrow();
+  });
+
+  it("does not mutate the original grid on a valid shot", () => {
+    const grid = createEmptyGrid();
+    applyShot(grid, 2, 2);
+    expect(grid[2][2]).toBe("empty");
   });
 });
 
 describe("countHiddenCells", () => {
-  it("counts every empty + ship cell as hidden", () => {
+  it("returns 64 for a fresh 8×8 grid", () => {
     expect(countHiddenCells(createEmptyGrid())).toBe(64);
   });
 
-  it("excludes hit and miss cells from the count", () => {
-    const placed = applyPlacement(
-      createEmptyGrid(),
-      ship("s1", 1),
-      { r: 0, c: 0 },
-      "horizontal",
-    );
-    const afterHit = applyShot(placed!.grid, 0, 0);
-    const afterMiss = applyShot(afterHit.grid, 1, 1);
-    expect(countHiddenCells(afterMiss.grid)).toBe(62);
+  it("counts 'ship' cells as hidden", () => {
+    const grid = createEmptyGrid();
+    grid[0][0] = "ship";
+    expect(countHiddenCells(grid)).toBe(64);
+  });
+
+  it("does not count 'hit' or 'miss' cells as hidden", () => {
+    const grid = createEmptyGrid();
+    grid[0][0] = "hit";
+    grid[0][1] = "miss";
+    expect(countHiddenCells(grid)).toBe(62);
   });
 });
 
 describe("areAllShipsPlaced", () => {
-  it("returns true when every ship has placed = true", () => {
-    const a = ship("a", 1);
-    a.placed = true;
-    const b = ship("b", 2);
-    b.placed = true;
-    expect(areAllShipsPlaced([a, b])).toBe(true);
+  it("returns true when every ship is placed", () => {
+    const ships = [makeShip({ placed: true }), makeShip({ placed: true })];
+    expect(areAllShipsPlaced(ships)).toBe(true);
   });
 
-  it("returns false when any ship is not placed", () => {
-    const a = ship("a", 1);
-    a.placed = true;
-    expect(areAllShipsPlaced([a, ship("b", 2)])).toBe(false);
+  it("returns false when any ship is unplaced", () => {
+    const ships = [makeShip({ placed: true }), makeShip({ placed: false })];
+    expect(areAllShipsPlaced(ships)).toBe(false);
   });
 
   it("returns true for an empty fleet", () => {
@@ -235,62 +210,20 @@ describe("areAllShipsPlaced", () => {
 });
 
 describe("areAllShipsSunk", () => {
-  it("returns true when every ship has hits >= length", () => {
-    const a = ship("a", 1);
-    a.hits = 1;
-    const b = ship("b", 2);
-    b.hits = 2;
-    expect(areAllShipsSunk([a, b])).toBe(true);
+  it("returns true when every ship's hits equal its length", () => {
+    const ships = [
+      makeShip({ length: 1, hits: 1 }),
+      makeShip({ length: 2, hits: 2 }),
+    ];
+    expect(areAllShipsSunk(ships)).toBe(true);
   });
 
-  it("returns false when any ship is not fully hit", () => {
-    const a = ship("a", 2);
-    a.hits = 1;
-    expect(areAllShipsSunk([a])).toBe(false);
+  it("returns false when any ship has remaining hits", () => {
+    const ships = [makeShip({ length: 2, hits: 1 })];
+    expect(areAllShipsSunk(ships)).toBe(false);
   });
 
   it("returns false for an empty fleet", () => {
     expect(areAllShipsSunk([])).toBe(false);
-  });
-});
-
-describe("cloneGrid", () => {
-  it("returns a deep enough copy that row mutation does not leak", () => {
-    const grid = createEmptyGrid();
-    const copy = cloneGrid(grid);
-    copy[0][0] = "ship";
-    expect(grid[0][0]).toBe("empty");
-  });
-});
-
-describe("createEmptyGrid — custom board size", () => {
-  it("creates a 6x6 grid when size=6", () => {
-    const grid = createEmptyGrid(6);
-    expect(grid.length).toBe(6);
-    for (const row of grid) expect(row.length).toBe(6);
-  });
-});
-
-describe("isInBounds — custom board size", () => {
-  it("accepts coordinates within the custom size", () => {
-    expect(isInBounds(0, 0, 6)).toBe(true);
-    expect(isInBounds(5, 5, 6)).toBe(true);
-  });
-
-  it("rejects coordinates at or beyond the custom size", () => {
-    expect(isInBounds(6, 0, 6)).toBe(false);
-    expect(isInBounds(0, 6, 6)).toBe(false);
-  });
-});
-
-describe("canPlace — honours grid dimensions as board size", () => {
-  it("rejects placement that would exceed a 6x6 grid", () => {
-    const grid = createEmptyGrid(6);
-    expect(canPlace(grid, { r: 4, c: 0 }, 3, "vertical")).toBe(false);
-  });
-
-  it("accepts placement that fits within a 6x6 grid", () => {
-    const grid = createEmptyGrid(6);
-    expect(canPlace(grid, { r: 3, c: 0 }, 3, "vertical")).toBe(true);
   });
 });

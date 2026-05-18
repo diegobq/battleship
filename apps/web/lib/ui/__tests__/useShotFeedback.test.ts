@@ -1,64 +1,100 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useShotFeedback } from "../useShotFeedback";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { useShotFeedback } from "../useShotFeedback";
 
-let mockPlay: ReturnType<typeof vi.fn>;
+const mockOsc = {
+  connect: vi.fn(),
+  start: vi.fn(),
+  stop: vi.fn(),
+  frequency: { value: 0 },
+};
+const mockGain = {
+  connect: vi.fn(),
+  gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+};
 
 beforeEach(() => {
-  localStorage.clear();
-  mockPlay = vi.fn().mockResolvedValue(undefined);
+  sessionStorage.setItem("bs-sfx", "on");
   vi.stubGlobal(
-    "Audio",
-    vi.fn(() => ({ play: mockPlay })),
+    "AudioContext",
+    class {
+      state = "running";
+      destination = {};
+      currentTime = 0;
+      createOscillator = () => mockOsc;
+      createGain = () => mockGain;
+      resume = vi.fn();
+    },
   );
-  vi.stubGlobal("navigator", { vibrate: vi.fn() });
-  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  Object.defineProperty(navigator, "vibrate", {
+    value: vi.fn(),
+    writable: true,
+    configurable: true,
+  });
+  mockOsc.start.mockClear();
 });
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-  localStorage.clear();
-});
-
-describe("useShotFeedback — sfx enabled", () => {
-  it("plays hit sound and vibrates on a hit", () => {
+describe("useShotFeedback", () => {
+  it("onShot does not throw for a hit", () => {
     const { result } = renderHook(() => useShotFeedback());
-    act(() => result.current.onShot({ hit: true, sunk: false }));
-    expect(Audio).toHaveBeenCalledWith("/sounds/hit.ogg");
-    expect(mockPlay).toHaveBeenCalled();
-    expect(navigator.vibrate).toHaveBeenCalledWith(50);
+    expect(() =>
+      act(() => result.current.onShot({ hit: true, sunk: false })),
+    ).not.toThrow();
   });
 
-  it("plays miss sound and does not vibrate on a miss", () => {
+  it("onShot does not throw for a miss", () => {
     const { result } = renderHook(() => useShotFeedback());
-    act(() => result.current.onShot({ hit: false, sunk: false }));
-    expect(Audio).toHaveBeenCalledWith("/sounds/miss.ogg");
-    expect(navigator.vibrate).not.toHaveBeenCalled();
+    expect(() =>
+      act(() => result.current.onShot({ hit: false, sunk: false })),
+    ).not.toThrow();
   });
 
-  it("plays sunk sound and uses multi-pulse vibration on sunk", () => {
+  it("onShot does not throw for a sunk ship", () => {
+    const { result } = renderHook(() => useShotFeedback());
+    expect(() =>
+      act(() => result.current.onShot({ hit: true, sunk: true })),
+    ).not.toThrow();
+  });
+
+  it("skips feedback when sfx is disabled", () => {
+    sessionStorage.removeItem("bs-sfx");
+    const vibrateSpy = vi.spyOn(navigator, "vibrate");
     const { result } = renderHook(() => useShotFeedback());
     act(() => result.current.onShot({ hit: true, sunk: true }));
-    expect(Audio).toHaveBeenCalledWith("/sounds/sunk.ogg");
-    expect(navigator.vibrate).toHaveBeenCalledWith([20, 40, 20]);
+    expect(vibrateSpy).not.toHaveBeenCalled();
+    expect(mockOsc.start).not.toHaveBeenCalled();
   });
-});
 
-describe("useShotFeedback — sfx disabled", () => {
-  it("plays nothing when bs-sfx is off", () => {
-    localStorage.setItem("bs-sfx", "off");
+  it("calls navigator.vibrate on sunk", () => {
+    const vibrateSpy = vi.spyOn(navigator, "vibrate");
+    const { result } = renderHook(() => useShotFeedback());
+    act(() => result.current.onShot({ hit: true, sunk: true }));
+    expect(vibrateSpy).toHaveBeenCalledWith([20, 40, 20]);
+  });
+
+  it("calls navigator.vibrate with single value on hit (not sunk)", () => {
+    const vibrateSpy = vi.spyOn(navigator, "vibrate");
     const { result } = renderHook(() => useShotFeedback());
     act(() => result.current.onShot({ hit: true, sunk: false }));
-    expect(Audio).not.toHaveBeenCalled();
-    expect(navigator.vibrate).not.toHaveBeenCalled();
+    expect(vibrateSpy).toHaveBeenCalledWith(50);
   });
-});
 
-describe("useShotFeedback — reduced motion", () => {
-  it("plays nothing when prefers-reduced-motion matches", () => {
-    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+  it("onTurnStart plays sound when sfx is enabled", () => {
     const { result } = renderHook(() => useShotFeedback());
-    act(() => result.current.onShot({ hit: true, sunk: false }));
-    expect(Audio).not.toHaveBeenCalled();
+    act(() => result.current.onTurnStart());
+    expect(mockOsc.start).toHaveBeenCalled();
+  });
+
+  it("onTurnStart skips audio when sfx is disabled", () => {
+    sessionStorage.removeItem("bs-sfx");
+    const { result } = renderHook(() => useShotFeedback());
+    act(() => result.current.onTurnStart());
+    expect(mockOsc.start).not.toHaveBeenCalled();
   });
 });

@@ -22,7 +22,8 @@ export type ServerMessage =
   | { type: "SHOT_RESULT"; payload: ShotResultDto }
   | { type: "TURN_TIMEOUT"; payload: { playerId: string } }
   | { type: "ERROR"; payload: { code: string; message: string } }
-  | { type: "PONG" };
+  | { type: "PONG" }
+  | { type: "SHUTDOWN_NOTICE" };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);

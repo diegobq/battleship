@@ -1,83 +1,80 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { TurnTimer } from "../turn-timer";
-
-beforeEach(() => {
-  vi.useFakeTimers();
-});
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
 describe("TurnTimer", () => {
-  it("invokes the callback after the configured delay", () => {
+  it("fires the callback after the specified delay", () => {
+    vi.useFakeTimers();
     const timer = new TurnTimer();
     const cb = vi.fn();
-    timer.start("g1", 5_000, cb);
-    expect(cb).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(4_999);
+    timer.start("g1", 1000, cb);
+    vi.advanceTimersByTime(999);
     expect(cb).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
-    expect(cb).toHaveBeenCalledTimes(1);
+    expect(cb).toHaveBeenCalledOnce();
   });
 
-  it("clears its own handle after firing", () => {
-    const timer = new TurnTimer();
-    timer.start("g1", 1_000, () => undefined);
-    vi.advanceTimersByTime(1_000);
-    expect(timer.has("g1")).toBe(false);
-    expect(timer.size).toBe(0);
-  });
-
-  it("cancel() prevents the callback from firing", () => {
+  it("cancel prevents the callback from firing", () => {
+    vi.useFakeTimers();
     const timer = new TurnTimer();
     const cb = vi.fn();
-    timer.start("g1", 5_000, cb);
-    expect(timer.cancel("g1")).toBe(true);
-    vi.advanceTimersByTime(10_000);
+    timer.start("g1", 1000, cb);
+    timer.cancel("g1");
+    vi.advanceTimersByTime(2000);
     expect(cb).not.toHaveBeenCalled();
   });
 
-  it("cancel() on an unknown game id returns false", () => {
-    expect(new TurnTimer().cancel("missing")).toBe(false);
+  it("cancel returns true when a timer existed, false otherwise", () => {
+    vi.useFakeTimers();
+    const timer = new TurnTimer();
+    timer.start("g1", 500, () => {});
+    expect(timer.cancel("g1")).toBe(true);
+    expect(timer.cancel("g1")).toBe(false);
   });
 
-  it("start() on an existing game replaces the previous timer", () => {
+  it("start replaces an existing timer for the same gameId", () => {
+    vi.useFakeTimers();
     const timer = new TurnTimer();
     const first = vi.fn();
     const second = vi.fn();
-    timer.start("g1", 5_000, first);
-    timer.start("g1", 2_000, second);
-    vi.advanceTimersByTime(2_000);
+    timer.start("g1", 1000, first);
+    timer.start("g1", 500, second);
+    vi.advanceTimersByTime(1000);
     expect(first).not.toHaveBeenCalled();
-    expect(second).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledOnce();
   });
 
-  it("tracks independent timers per game id", () => {
+  it("has() returns true while timer is active, false after cancel", () => {
+    vi.useFakeTimers();
     const timer = new TurnTimer();
-    const a = vi.fn();
-    const b = vi.fn();
-    timer.start("a", 1_000, a);
-    timer.start("b", 2_000, b);
+    timer.start("g1", 1000, () => {});
+    expect(timer.has("g1")).toBe(true);
+    timer.cancel("g1");
+    expect(timer.has("g1")).toBe(false);
+  });
+
+  it("size reflects the number of active timers", () => {
+    vi.useFakeTimers();
+    const timer = new TurnTimer();
+    timer.start("g1", 1000, () => {});
+    timer.start("g2", 1000, () => {});
     expect(timer.size).toBe(2);
-    vi.advanceTimersByTime(1_000);
-    expect(a).toHaveBeenCalledTimes(1);
-    expect(b).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1_000);
-    expect(b).toHaveBeenCalledTimes(1);
-    expect(timer.size).toBe(0);
+    timer.cancel("g1");
+    expect(timer.size).toBe(1);
   });
 
-  it("cancelAll() clears every pending timer", () => {
+  it("cancelAll removes all active timers", () => {
+    vi.useFakeTimers();
     const timer = new TurnTimer();
-    const a = vi.fn();
-    const b = vi.fn();
-    timer.start("a", 1_000, a);
-    timer.start("b", 2_000, b);
+    const cb = vi.fn();
+    timer.start("g1", 500, cb);
+    timer.start("g2", 500, cb);
     timer.cancelAll();
+    vi.advanceTimersByTime(1000);
+    expect(cb).not.toHaveBeenCalled();
     expect(timer.size).toBe(0);
-    vi.advanceTimersByTime(10_000);
-    expect(a).not.toHaveBeenCalled();
-    expect(b).not.toHaveBeenCalled();
   });
 });

@@ -15,7 +15,10 @@
 - [Security](#security)
 - [Infrastructure & Scaling](#infrastructure--scaling)
 - [Features](#features)
+- [Code Quality](#code-quality)
 - [Design System Tooling](#design-system-tooling)
+- [Performance](#performance)
+- [Documentation](#documentation)
 - [Legal & Compliance](#legal--compliance)
 
 ---
@@ -25,18 +28,18 @@
 | Topic                         | MVP state                                                                                       | Detail                                                                                                          |
 | ----------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | **Database**                  | In-memory only — `GameRegistry` lives on `globalThis`. A server restart drops all active games. | [SOLUTION-1.md § In-Memory State Seam](./SOLUTION-1.md#in-memory-state-seam) · [SOLUTION-3.md](./SOLUTION-3.md) |
-| **Authentication**            | `playerId` is client-generated and unsigned. Anyone can forge an ID.                            | [PRODUCTION-CHECKLIST.md § Security](./PRODUCTION-CHECKLIST.md#security)                                        |
-| **GDPR data export / delete** | No flow; no persisted data to export yet.                                                       | [PRODUCTION-CHECKLIST.md § Analytics & Consent](./PRODUCTION-CHECKLIST.md#analytics--consent)                   |
+| **GDPR data export / delete** | No flow; no persisted data to export yet.                                                       | —                                                                                                               |
 
 ---
 
 ## Observability
 
-| Topic                    | MVP state                                                                                  | Detail                                                                                        |
-| ------------------------ | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| **Structured logging**   | Ad-hoc `console.log` / `console.error`. No log levels, no JSON output, no correlation IDs. | [PRODUCTION-CHECKLIST.md § Observability](./PRODUCTION-CHECKLIST.md#observability)            |
-| **Error tracking**       | Server errors are swallowed by WS `try/catch`; client errors go nowhere.                   | [PRODUCTION-CHECKLIST.md § Observability](./PRODUCTION-CHECKLIST.md#observability)            |
-| **Analytics / tracking** | No event tracking; cannot answer "games per day", "mode mix", "average match length".      | [PRODUCTION-CHECKLIST.md § Analytics & Consent](./PRODUCTION-CHECKLIST.md#analytics--consent) |
+| Topic                       | MVP state                                                                                                       | Detail |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- | ------ |
+| **Structured logging**      | Ad-hoc `console.log` / `console.error`. No log levels, no JSON output, no correlation IDs.                      | —      |
+| **Error tracking**          | Server errors are swallowed by WS `try/catch`; client errors go nowhere.                                        | —      |
+| **Analytics / tracking**    | No event tracking; cannot answer "games per day", "mode mix", "average match length".                           | —      |
+| **Consent / cookie banner** | No banner. Session cookie is live; a consent banner is required once analytics or persistent auth cookies ship. | —      |
 
 ---
 
@@ -52,32 +55,44 @@
 
 ## Security
 
-| Topic                | MVP state                                                         | Detail                                                                   |
-| -------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| **Rate limiting**    | No throttling on REST or WS. A client can flood `SHOOT` messages. | [PRODUCTION-CHECKLIST.md § Security](./PRODUCTION-CHECKLIST.md#security) |
-| **Security headers** | No CSP, HSTS, `X-Frame-Options`, or `Referrer-Policy`.            | [PRODUCTION-CHECKLIST.md § Security](./PRODUCTION-CHECKLIST.md#security) |
-| **Dependency audit** | `pnpm audit` is never run in CI.                                  | [PRODUCTION-CHECKLIST.md § Security](./PRODUCTION-CHECKLIST.md#security) |
+| Topic                  | MVP state                                                                                                                                                                                                                                                   | Detail                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **REST rate limiting** | Per-IP throttling is a reverse-proxy concern (Nginx / Fly.io). No application-layer limit on `/create` or `/join`. Future `withAuth` routes should add per-`playerId` throttling in the wrapper. WS rate limiting (10 msg/s per connection) is implemented. | [SOLUTION-1.md § Rate Limiting](./SOLUTION-1.md#rate-limiting) |
+| **Dependency audit**   | `pnpm audit` is never run in CI. Not wired up yet — no pipeline exists.                                                                                                                                                                                     | —                                                              |
 
 ---
 
 ## Infrastructure & Scaling
 
-| Topic                  | MVP state                                                                                  | Detail                                                                             |
-| ---------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| **Horizontal scaling** | Single-instance only. WebSocket hub is in-memory; no Redis pub-sub for multi-node fan-out. | [SOLUTION-3.md](./SOLUTION-3.md)                                                   |
-| **Graceful shutdown**  | No `SIGTERM` handler. Active WS connections drop on every deploy.                          | [PRODUCTION-CHECKLIST.md § Reliability](./PRODUCTION-CHECKLIST.md#reliability)     |
-| **CI/CD pipeline**     | No `.github/workflows/`. Nothing gates a broken `main`.                                    | [PRODUCTION-CHECKLIST.md § DevOps & CI/CD](./PRODUCTION-CHECKLIST.md#devops--cicd) |
-| **Env schema**         | `process.env.*` read directly; a missing var fails late and deep.                          | [PRODUCTION-CHECKLIST.md § Configuration](./PRODUCTION-CHECKLIST.md#configuration) |
+| Topic                  | MVP state                                                                                                                                                                                   | Detail                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Horizontal scaling** | Single-instance only. WebSocket hub is in-memory; no Redis pub-sub for multi-node fan-out.                                                                                                  | [SOLUTION-3.md](./SOLUTION-3.md)                                       |
+| **Graceful shutdown**  | Implemented — `SIGTERM`/`SIGINT` handler drains connections and broadcasts `SHUTDOWN_NOTICE`.                                                                                               | [SOLUTION-1.md § Graceful Shutdown](./SOLUTION-1.md#graceful-shutdown) |
+| **CI/CD pipeline**     | No `.github/workflows/`. Nothing gates a broken `main`.                                                                                                                                     | —                                                                      |
+| **Dependency audit**   | `pnpm audit` is not run. Belongs in the CI pipeline as a `pnpm audit --prod --audit-level high` step. Not wired up yet — no pipeline exists.                                                | —                                                                      |
+| **Release automation** | No tagging, no release notes. Rollbacks rely on git SHA recall.                                                                                                                             | —                                                                      |
+| **Feature flags**      | Theme and experiments are hardcoded. No LaunchDarkly / Unleash / Redis-backed flag service.                                                                                                 | —                                                                      |
+| **Per-mode config**    | `EliteConfig` is hardcoded in `packages/core/src/core/scoring.ts`. Balance tweaks require a deploy. The `Partial<EliteConfig>` override seam is ready for a remote JSON loader when needed. | —                                                                      |
 
 ---
 
 ## Features
 
-| Topic                    | MVP state                                                                                                                  | Detail                                                                          |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| **Sound cues**           | `useShotFeedback` is wired and the hook runs, but `public/sounds/*.ogg` files are not shipped and there is no mute toggle. | [PRODUCTION-CHECKLIST.md § Frontend UX](./PRODUCTION-CHECKLIST.md#frontend-ux)  |
-| **PWA / installability** | No `manifest.webmanifest`, no service worker, no install prompt.                                                           | [PRODUCTION-CHECKLIST.md § PWA & Mobile](./PRODUCTION-CHECKLIST.md#pwa--mobile) |
-| **Spectator mode**       | Design documented; not implemented.                                                                                        | [SOLUTION-4.md](./SOLUTION-4.md)                                                |
+| Topic                 | MVP state                                                             | Detail |
+| --------------------- | --------------------------------------------------------------------- | ------ |
+| **Service worker**    | No SW. Cold start on flaky mobile networks; no offline lobby caching. | —      |
+| **Install prompt UX** | `beforeinstallprompt` is not handled; no "Add to Home Screen" nudge.  | —      |
+
+---
+
+## Code Quality
+
+| Topic                   | MVP state                                                                                        | Detail |
+| ----------------------- | ------------------------------------------------------------------------------------------------ | ------ |
+| **Husky + lint-staged** | No pre-commit hooks. Quality gates run manually and in CI instead of enforcing fixes pre-commit. | —      |
+| **Commitlint**          | Commit naming follows repo guidance socially; no automated enforcement is configured.            | —      |
+| **CHANGELOG**           | No generated changelog yet; release communication remains informal at MVP stage.                 | —      |
+| **Versioning**          | Package version stays at `0.0.0`; formal semver is deferred until there is a public release cut. | —      |
 
 ---
 
@@ -91,11 +106,29 @@
 
 ---
 
+## Performance
+
+| Topic                         | MVP state                                                                                                                                                                                                                     | Detail |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **Bundle analyser**           | `pnpm -F @battleship/web analyze` is available (see `README.md`). The script enables a future CI step to fail the build when first-load JS exceeds a size threshold — not wired up yet as no pipeline exists.                 | —      |
+| **Lighthouse CI**             | Local script available: `pnpm -F @battleship/web lighthouse` (see `README.md`). Automated runs on every PR are not wired up yet — no pipeline exists.                                                                         | —      |
+| **Image optimisation policy** | Enforced by `@next/next/no-img-element` (included in `eslint-config-next/core-web-vitals`). Any raw `<img>` tag is a lint error. No raster images yet — policy is ready for when they are added.                              | —      |
+| **Code-splitting audit**      | Theme CSS files (`dark.css`, `christmas.css`) are statically imported but each is ~590 bytes — negligible overhead. Dynamic import adds more JS complexity than it saves at this scale. Revisit if themes grow significantly. | —      |
+
+---
+
+## Documentation
+
+| Topic                       | MVP state                                                                                                | Detail |
+| --------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
+| **API reference (TypeDoc)** | No generated API docs. TypeDoc HTML output on GitHub Pages deferred until there is a public release cut. | —      |
+
+---
+
 ## Legal & Compliance
 
-| Topic                | MVP state                                                                                                                    | Detail                                                                                        |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **LICENSE**          | No license file; the repo is legally undistributable.                                                                        | [PRODUCTION-CHECKLIST.md § Compliance & Legal](./PRODUCTION-CHECKLIST.md#compliance--legal)   |
-| **Privacy policy**   | No `/privacy` page; no statement on what data is collected. Required before any data is persisted.                           | [PRODUCTION-CHECKLIST.md § Compliance & Legal](./PRODUCTION-CHECKLIST.md#compliance--legal)   |
-| **Terms of service** | No ToS; required by app stores.                                                                                              | [PRODUCTION-CHECKLIST.md § Compliance & Legal](./PRODUCTION-CHECKLIST.md#compliance--legal)   |
-| **Consent banner**   | No cookie / analytics consent banner. Not required yet — no cookies or trackers — but becomes mandatory when analytics land. | [PRODUCTION-CHECKLIST.md § Analytics & Consent](./PRODUCTION-CHECKLIST.md#analytics--consent) |
+| Topic                | MVP state                                                                                                                      | Detail |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------ |
+| **Privacy policy**   | No `/privacy` page. Session cookie is live; a policy is required before public launch but is out of scope for this assessment. | —      |
+| **Terms of service** | No ToS. Required by app stores; out of scope for this assessment.                                                              | —      |
+| **Consent banner**   | No cookie / analytics consent banner. Not required yet — no cookies or trackers — but becomes mandatory when analytics land.   | —      |

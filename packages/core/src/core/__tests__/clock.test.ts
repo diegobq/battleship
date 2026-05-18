@@ -1,14 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, it, expect } from "vitest";
 import { makeFakeClock, makeSystemClock } from "../clock";
 
 describe("makeSystemClock", () => {
   it("returns a value close to Date.now()", () => {
     const clock = makeSystemClock();
     const before = Date.now();
-    const reading = clock.now();
+    const t = clock.now();
     const after = Date.now();
-    expect(reading).toBeGreaterThanOrEqual(before);
-    expect(reading).toBeLessThanOrEqual(after);
+    expect(t).toBeGreaterThanOrEqual(before);
+    expect(t).toBeLessThanOrEqual(after);
   });
 });
 
@@ -18,28 +18,29 @@ describe("makeFakeClock", () => {
     expect(clock.now()).toBe(0);
   });
 
-  it("starts at the given value", () => {
-    const clock = makeFakeClock(1_700_000_000_000);
-    expect(clock.now()).toBe(1_700_000_000_000);
+  it("starts at the given seed", () => {
+    const clock = makeFakeClock(1000);
+    expect(clock.now()).toBe(1000);
   });
 
-  it("advances by the given amount", () => {
-    const clock = makeFakeClock(100);
-    clock.advance(50);
-    expect(clock.now()).toBe(150);
-    clock.advance(25);
-    expect(clock.now()).toBe(175);
-  });
-
-  it("sets to an absolute value", () => {
-    const clock = makeFakeClock(100);
-    clock.set(500);
+  it("advance adds elapsed time", () => {
+    const clock = makeFakeClock(0);
+    clock.advance(500);
     expect(clock.now()).toBe(500);
+    clock.advance(300);
+    expect(clock.now()).toBe(800);
   });
 
-  it("does not auto-advance between reads", () => {
-    const clock = makeFakeClock(42);
-    expect(clock.now()).toBe(42);
-    expect(clock.now()).toBe(42);
+  it("set replaces the current time absolutely", () => {
+    const clock = makeFakeClock(100);
+    clock.set(9999);
+    expect(clock.now()).toBe(9999);
+  });
+
+  it("set followed by advance is cumulative from the set point", () => {
+    const clock = makeFakeClock();
+    clock.set(1000);
+    clock.advance(250);
+    expect(clock.now()).toBe(1250);
   });
 });

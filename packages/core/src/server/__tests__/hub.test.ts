@@ -1,162 +1,167 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeFakeClock } from "../../core/clock";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  WebSocketHub,
+  getHub,
+  __resetHubForTests,
+  isHubInitialized,
+} from "../ws/hub";
+import type { HubSocket } from "../ws/hub";
+import type { GameState } from "../../core/types";
 import { createGame, createPlayer } from "../../core/game";
-import { GameState } from "../../core/types";
-import { WebSocketHub, __resetHubForTests, getHub } from "../ws/hub";
+import { makeFakeClock } from "../../core/clock";
 
-function mockSocket() {
-  return { send: vi.fn(), close: vi.fn(), readyState: 1 };
+function makeSock(readyState = 1): HubSocket & { sends: string[] } {
+  const sends: string[] = [];
+  return {
+    sends,
+    send: (data) => sends.push(data),
+    close: vi.fn(),
+    readyState,
+  };
 }
 
-function fakeGame(id = "g1"): GameState {
+function makeGame(): GameState {
+  const host = createPlayer("host", "Host");
   return createGame({
-    id,
+    id: "g1",
     config: { mode: "Classic", fleet: { Submarine: 1 }, turnTimerMs: 60_000 },
-    host: createPlayer("host", "Host"),
-    clock: makeFakeClock(0),
+    host,
+    clock: makeFakeClock(),
   });
 }
 
 describe("WebSocketHub", () => {
-  let hub: WebSocketHub;
-
-  beforeEach(() => {
-    hub = new WebSocketHub();
+  it("sendTo delivers a message to the registered socket", () => {
+    const hub = new WebSocketHub();
+    const sock = makeSock();
+    hub.register("g1", "host", sock);
+    hub.sendTo("g1", "host", { type: "PONG" });
+    expect(sock.sends).toHaveLength(1);
+    expect(JSON.parse(sock.sends[0])).toEqual({ type: "PONG" });
   });
 
-  describe("register", () => {
-    it("adds a connection so isOnline returns true", () => {
-      hub.register("g1", "p1", mockSocket());
-      expect(hub.isOnline("g1", "p1")).toBe(true);
-    });
-
-    it("closes the old socket when the same player reconnects", () => {
-      const old = mockSocket();
-      hub.register("g1", "p1", old);
-      hub.register("g1", "p1", mockSocket());
-      expect(old.close).toHaveBeenCalledWith(4000, expect.any(String));
-    });
-
-    it("allows two distinct players in the same game", () => {
-      hub.register("g1", "p1", mockSocket());
-      hub.register("g1", "p2", mockSocket());
-      expect(hub.size).toBe(2);
-    });
+  it("sendTo returns false when the player is not registered", () => {
+    const hub = new WebSocketHub();
+    expect(hub.sendTo("g1", "nobody", { type: "PONG" })).toBe(false);
   });
 
-  describe("unregister", () => {
-    it("removes the player so isOnline returns false", () => {
-      hub.register("g1", "p1", mockSocket());
-      hub.unregister("g1", "p1");
-      expect(hub.isOnline("g1", "p1")).toBe(false);
-    });
-
-    it("prunes the game entry when the last player leaves", () => {
-      hub.register("g1", "p1", mockSocket());
-      hub.unregister("g1", "p1");
-      expect(hub.size).toBe(0);
-    });
-
-    it("is a no-op for an unknown game", () => {
-      expect(() => hub.unregister("ghost", "ghost")).not.toThrow();
-    });
+  it("sendTo returns false when socket readyState is not OPEN (1)", () => {
+    const hub = new WebSocketHub();
+    const sock = makeSock(3); // CLOSED
+    hub.register("g1", "host", sock);
+    expect(hub.sendTo("g1", "host", { type: "PONG" })).toBe(false);
+    expect(sock.sends).toHaveLength(0);
   });
 
-  describe("sendTo", () => {
-    it("returns false for an unknown player", () => {
-      expect(hub.sendTo("g1", "ghost", { type: "PONG" })).toBe(false);
-    });
-
-    it("sends the serialised message and returns true", () => {
-      const sock = mockSocket();
-      hub.register("g1", "p1", sock);
-      expect(hub.sendTo("g1", "p1", { type: "PONG" })).toBe(true);
-      expect(sock.send).toHaveBeenCalledOnce();
-      expect(JSON.parse(sock.send.mock.calls[0][0])).toMatchObject({
-        type: "PONG",
-      });
-    });
-
-    it("skips delivery and returns false when socket is not OPEN", () => {
-      const sock = { ...mockSocket(), readyState: 3 }; // CLOSED
-      hub.register("g1", "p1", sock);
-      expect(hub.sendTo("g1", "p1", { type: "PONG" })).toBe(false);
-      expect(sock.send).not.toHaveBeenCalled();
-    });
+  it("register closes an existing socket for the same playerId", () => {
+    const hub = new WebSocketHub();
+    const first = makeSock();
+    const second = makeSock();
+    hub.register("g1", "host", first);
+    hub.register("g1", "host", second);
+    expect(first.close).toHaveBeenCalledWith(
+      4000,
+      "Replaced by new connection.",
+    );
   });
 
-  describe("broadcast", () => {
-    it("delivers to all connected players", () => {
-      const s1 = mockSocket();
-      const s2 = mockSocket();
-      hub.register("g1", "p1", s1);
-      hub.register("g1", "p2", s2);
-      hub.broadcast("g1", () => ({ type: "PONG" }));
-      expect(s1.send).toHaveBeenCalledOnce();
-      expect(s2.send).toHaveBeenCalledOnce();
-    });
+  it("unregister removes a player's connection", () => {
+    const hub = new WebSocketHub();
+    hub.register("g1", "host", makeSock());
+    hub.unregister("g1", "host");
+    expect(hub.isOnline("g1", "host")).toBe(false);
+  });
 
-    it("passes each recipient playerId to the factory", () => {
-      hub.register("g1", "p1", mockSocket());
-      hub.register("g1", "p2", mockSocket());
-      const seen: string[] = [];
-      hub.broadcast("g1", (pid) => {
-        seen.push(pid);
-        return { type: "PONG" };
-      });
-      expect(seen.sort()).toEqual(["p1", "p2"]);
-    });
+  it("unregister cleans up the game entry when the last player leaves", () => {
+    const hub = new WebSocketHub();
+    hub.register("g1", "host", makeSock());
+    hub.unregister("g1", "host");
+    expect(hub.size).toBe(0);
+  });
 
-    it("skips sockets with readyState !== OPEN", () => {
-      const open = mockSocket();
-      const closed = { ...mockSocket(), readyState: 3 };
-      hub.register("g1", "p1", open);
-      hub.register("g1", "p2", closed);
-      hub.broadcast("g1", () => ({ type: "PONG" }));
-      expect(open.send).toHaveBeenCalledOnce();
-      expect(closed.send).not.toHaveBeenCalled();
-    });
+  it("broadcast calls factory and sends to all open connections", () => {
+    const hub = new WebSocketHub();
+    const sockA = makeSock();
+    const sockB = makeSock();
+    hub.register("g1", "a", sockA);
+    hub.register("g1", "b", sockB);
+    hub.broadcast("g1", () => ({ type: "PONG" }));
+    expect(sockA.sends).toHaveLength(1);
+    expect(sockB.sends).toHaveLength(1);
+  });
 
-    it("is a no-op for an unregistered game", () => {
-      expect(() =>
-        hub.broadcast("ghost", () => ({ type: "PONG" })),
-      ).not.toThrow();
+  it("broadcast skips closed sockets", () => {
+    const hub = new WebSocketHub();
+    const open = makeSock(1);
+    const closed = makeSock(3);
+    hub.register("g1", "a", open);
+    hub.register("g1", "b", closed);
+    hub.broadcast("g1", () => ({ type: "PONG" }));
+    expect(open.sends).toHaveLength(1);
+    expect(closed.sends).toHaveLength(0);
+  });
+
+  it("broadcastState sends sanitized states to each player", () => {
+    const hub = new WebSocketHub();
+    const hostSock = makeSock();
+    const guestSock = makeSock();
+    hub.register("g1", "host", hostSock);
+    hub.register("g1", "guest", guestSock);
+    const state = makeGame();
+    hub.broadcastState("g1", state);
+    expect(hostSock.sends).toHaveLength(1);
+    expect(guestSock.sends).toHaveLength(1);
+    const hostMsg = JSON.parse(hostSock.sends[0]);
+    expect(hostMsg.type).toBe("GAME_STATE_UPDATE");
+    expect(JSON.parse(guestSock.sends[0])).toMatchObject({
+      type: "GAME_STATE_UPDATE",
     });
   });
 
-  describe("broadcastState", () => {
-    it("sends GAME_STATE_UPDATE to every connected player", () => {
-      const s1 = mockSocket();
-      const s2 = mockSocket();
-      hub.register("g1", "p1", s1);
-      hub.register("g1", "p2", s2);
-      hub.broadcastState("g1", fakeGame("g1"));
-      const msg1 = JSON.parse(s1.send.mock.calls[0][0]);
-      const msg2 = JSON.parse(s2.send.mock.calls[0][0]);
-      expect(msg1.type).toBe("GAME_STATE_UPDATE");
-      expect(msg2.type).toBe("GAME_STATE_UPDATE");
-    });
+  it("size reflects total registered connections across all games", () => {
+    const hub = new WebSocketHub();
+    hub.register("g1", "a", makeSock());
+    hub.register("g1", "b", makeSock());
+    hub.register("g2", "c", makeSock());
+    expect(hub.size).toBe(3);
   });
 
-  describe("isOnline", () => {
-    it("returns false for players that were never registered", () => {
-      expect(hub.isOnline("g1", "nobody")).toBe(false);
-    });
+  it("closeAll sends SHUTDOWN_NOTICE, closes every socket, and empties the hub", () => {
+    const hub = new WebSocketHub();
+    const sockA = makeSock();
+    const sockB = makeSock();
+    const sockC = makeSock();
+    hub.register("g1", "a", sockA);
+    hub.register("g1", "b", sockB);
+    hub.register("g2", "c", sockC);
+
+    hub.closeAll();
+
+    for (const sock of [sockA, sockB, sockC]) {
+      expect(JSON.parse(sock.sends[0])).toEqual({ type: "SHUTDOWN_NOTICE" });
+      expect(sock.close).toHaveBeenCalledWith(1001, "Server shutting down.");
+    }
+    expect(hub.size).toBe(0);
   });
 });
 
-describe("getHub / __resetHubForTests", () => {
-  beforeEach(() => {
-    __resetHubForTests();
-  });
+describe("getHub singleton", () => {
+  beforeEach(() => __resetHubForTests());
 
-  it("returns the same singleton on repeated calls", () => {
+  it("returns the same instance on successive calls", () => {
     expect(getHub()).toBe(getHub());
   });
 
-  it("returns a fresh instance after reset", () => {
-    const before = getHub();
+  it("__resetHubForTests forces a fresh instance on next getHub()", () => {
+    const first = getHub();
     __resetHubForTests();
-    expect(getHub()).not.toBe(before);
+    expect(getHub()).not.toBe(first);
+  });
+
+  it("isHubInitialized returns true after getHub() and false after reset", () => {
+    getHub();
+    expect(isHubInitialized()).toBe(true);
+    __resetHubForTests();
+    expect(isHubInitialized()).toBe(false);
   });
 });

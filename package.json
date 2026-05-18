@@ -8,6 +8,7 @@
     "format:check": "prettier --check .",
     "start": "pnpm --filter @battleship/web start",
     "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
     "test": "pnpm -r test",
     "test:watch": "pnpm -r test:watch",
     "test:coverage": "pnpm -r test:coverage",

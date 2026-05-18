@@ -25,10 +25,17 @@ This document records the design rationale behind the Battleship implementation 
 - [Screen-Reader Announcements](#screen-reader-announcements)
 - [Theme Switcher](#theme-switcher)
 - [Safe-Area Insets](#safe-area-insets)
-- [Haptic Feedback](#haptic-feedback)
+- [Audio & Haptic Feedback](#shot-feedback-audio--haptics)
 - [Optimistic Shot Feedback](#optimistic-shot-feedback)
 - [Test Strategy](#test-strategy)
 - [Error Boundaries](#error-boundaries)
+- [Signed Player Sessions](#signed-player-sessions) (REST · WebSocket · Route Guard)
+- [Rate Limiting](#rate-limiting)
+- [Security Headers](#security-headers)
+- [Input Sanitisation](#input-sanitisation)
+- [Environment Schema](#environment-schema)
+- [SEO & Discoverability](#seo--discoverability)
+- [PWA Manifest & Icons](#pwa-manifest--icons)
 - [Health & Readiness Probes](#health--readiness-probes-p0)
 - [Verification](#verification)
 
@@ -484,9 +491,11 @@ Module-scoped subscribable store with imperative API (`toast.error`, `toast.info
 
 ---
 
-## Haptic Feedback
+## Audio & Haptic Feedback
 
-Optional chaining on `navigator.vibrate?.()` silently no-ops on unsupported browsers. Haptics and audio share the same `localStorage["bs-sfx"]` preference key so one toggle controls both. See [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md).
+Audio is synthesised at runtime via the Web Audio API (`AudioContext` + `OscillatorNode` + `GainNode`) — no static OGG files, works offline, no per-shot HTTP request. Three tones cover shot outcomes (880 Hz hit, 220 Hz miss, 660 Hz sunk); a fourth 1047 Hz tone fires on turn start via `onTurnStart`, called from a `useRef`-guarded `useEffect` in `PlayView` that skips the initial mount. Haptics use `navigator.vibrate?.()` (optional chaining silently no-ops on unsupported browsers) with the same `useShotFeedback` hook controlling both channels.
+
+The preference defaults to **off** and is stored in `sessionStorage["bs-sfx"]` so two players in the same browser origin have independent mute state per tab. A `🔊 / 🔇` toggle (`SfxToggle`) in the PlayView HUD writes `"on"` / removes the key; `useSfx` mirrors the `useTheme` pattern (`useReducer` + `useEffect`) to avoid calling `setState` inside the effect body.
 
 ---
 
@@ -516,6 +525,194 @@ React render errors are catastrophic in production — a single unhandled except
 **`apps/web/app/not-found.tsx`** — Custom 404 page for invalid routes (e.g., `/game/invalid-id`), preventing the default Next.js chrome.
 
 All three boundaries use the existing design tokens (`--brand-danger`, `--brand-primary`, `--surface-*`) for consistency with the game UI. Errors are logged to the console; Sentry integration (pipeline errors to external service) is a follow-up. The boundaries handle **render-time errors only**; WebSocket / connection errors remain in GameShell state (not caught by React boundaries).
+
+---
+
+## Signed Player Sessions
+
+Authentication is enforced at three layers: token issuance (REST), connection verification (WebSocket), and route guard (client navigation). Each layer has a single, centralized enforcement point.
+
+### Token issuance — REST
+
+`POST /api/game/create` and `POST /api/game/join` are the only unauthenticated endpoints by design — they are the token-minting operations themselves. Both sign `{playerId}:{gameId}` with `SESSION_SECRET` via HMAC-SHA256 and deliver the token as an `HttpOnly; SameSite=Lax; Secure` cookie named `battleship_session_{gameId}`. The token never touches JavaScript — it is invisible to the client and sent automatically by the browser on every same-site request. `SameSite=Lax` is the CSRF countermeasure: cross-origin requests (e.g., from an attacker's page) do not carry the cookie. No new npm dependencies — Node's built-in `crypto` module is used throughout.
+
+All future REST routes that require a verified identity should use a `withAuth` higher-order wrapper that reads the `Authorization: Bearer` header or the session cookie, calls `verifyToken`, and returns 401 before the handler runs:
+
+```typescript
+// lib/api/with-auth.ts (future)
+export function withAuth(
+  handler: (
+    req: Request,
+    playerId: string,
+    gameId: string,
+  ) => Promise<Response>,
+) {
+  return async (req: Request) => {
+    const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+    const { playerId, gameId } = extractClaims(req);
+    if (!token || !verifyToken(token, playerId, gameId, getSessionSecret())) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHORIZED" } },
+        { status: 401 },
+      );
+    }
+    return handler(req, playerId, gameId);
+  };
+}
+```
+
+### Connection verification — WebSocket
+
+The custom Node server (`apps/web/server.ts`) is the single enforcement point for all WebSocket connections. Because the browser sends cookies automatically on the WS upgrade request, `onWsConnection` reads the session cookie from `req.headers.cookie` via `extractTokenFromCookies`, verifies it with `crypto.timingSafeEqual`, and closes the socket with code 4003 on mismatch — before `hub.register` is ever called. The token never appears in the WS URL, keeping it out of server access logs. In development, a fallback secret is used automatically; in production, `getSessionSecret()` throws at boot if `SESSION_SECRET` is unset.
+
+### Route guard — `(protected)` layout
+
+All routes that require an active session live under `app/(protected)/`. The route group adds no segments to the URL — `/game/abc` stays `/game/abc`. The `layout.tsx` is a Next.js server component: it reads `battleship_session_{gameId}` from the incoming request via `cookies()` from `next/headers` and calls `redirect("/")` before the page renders if the cookie is absent. This produces a clean server-side redirect with no hydration flash. The layout is a UX guard (fast redirect for users with no session); the cryptographic security boundary remains the WS connection check in `server.ts`.
+
+---
+
+## Rate Limiting
+
+Rate limiting is enforced at the WebSocket layer and delegated to the reverse proxy for REST.
+
+**WebSocket — per-connection sliding window.** Each accepted connection gets its own `MessageRateLimiter` instance (created by `createMessageRateLimiter` in `lib/api/rate-limiter.ts`). The limiter tracks a message count within a 1-second window; once the count exceeds 10, the connection is closed with code 4029 ("Too Many Requests") before the message is processed. The limit fires early — before any deserialization or game-state mutation — so a flood cannot exhaust the registry or CPU. The limiter is a plain closure with no external state, making it trivially testable and zero-dependency.
+
+**REST — proxy layer.** The current REST endpoints (`POST /create`, `POST /join`) are pre-auth by design and have no `playerId` to key a per-player bucket against. Per-IP limiting is the appropriate countermeasure but belongs at the reverse proxy (Nginx `limit_req`, Fly.io rate-limit middleware) rather than application code — proxy-level limits apply before the Node process is reached and survive horizontal scaling. Once authenticated REST endpoints exist, the `withAuth` wrapper documented in the Signed Player Sessions section is the right place to add per-`playerId` throttling.
+
+---
+
+## Security Headers
+
+`apps/web/next.config.ts` now exports a `headers()` function that attaches security headers to every response (`source: "/(.*)"`) via the Next.js built-in header injection:
+
+| Header                      | Value                                          | Purpose                                            |
+| --------------------------- | ---------------------------------------------- | -------------------------------------------------- |
+| `X-Frame-Options`           | `DENY`                                         | Clickjacking prevention (legacy browsers)          |
+| `X-Content-Type-Options`    | `nosniff`                                      | MIME-type sniffing prevention                      |
+| `Referrer-Policy`           | `strict-origin-when-cross-origin`              | Limits referrer leakage on cross-origin navigation |
+| `Permissions-Policy`        | `camera=(), microphone=(), geolocation=()`     | Disables browser features the game does not use    |
+| `Content-Security-Policy`   | see below                                      | XSS containment                                    |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Forces HTTPS for 2 years (production only)         |
+
+**CSP policy:** `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss: ws:; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`
+
+`script-src` requires `'unsafe-inline'` because Next.js injects inline bootstrap scripts for hydration. This is the known trade-off with Next.js App Router and static CSP headers. The production-grade resolution is a **nonce-based CSP** implemented via Next.js `middleware.ts`: the middleware generates a per-request nonce, injects it into the CSP header, and passes it to `next/headers` for server components to forward to `<Script>` tags. That is a follow-up hardening step beyond the MVP scope.
+
+HSTS is omitted in development to avoid locking localhost to HTTPS.
+
+---
+
+## Input Sanitisation
+
+Player-supplied strings (names, game names) pass through two sanitisation layers in `packages/core/src/api/dto.ts` before being stored or broadcast:
+
+1. **NFKC Unicode normalisation** — `String.prototype.normalize("NFKC")` collapses compatibility equivalents (e.g., full-width `Ａ` → ASCII `A`, ligatures, superscripts). This prevents homograph attacks where two visually identical names are actually distinct byte sequences.
+
+2. **Invisible codepoint stripping** — A regex covers the ranges documented in Unicode as zero-width or bidirectional-control characters:
+   - U+200B–U+200D (zero-width space / non-joiner / joiner)
+   - U+FEFF (BOM / zero-width no-break space)
+   - U+202A–U+202E (directional embedding / override marks)
+   - U+2066–U+2069 (directional isolate marks)
+
+   These are invisible to the eye but distinct in bytes, enabling spoofed identical-looking names and potential rendering glitches.
+
+Both transformations happen before the length check, so the 32-character cap is enforced against the _rendered_ name rather than the raw input. A name that normalises to an empty string is rejected with the same 400 error as a missing field.
+
+`parseOptionalString` (used for `gameName`) intentionally does **not** apply sanitisation — optional cosmetic strings are either accepted as-is or silently discarded; they are never compared for identity, so homograph attacks have no surface area there.
+
+---
+
+## Environment Schema
+
+`apps/web/lib/env.ts` is the single place where environment variables are read and validated. It exposes two exports:
+
+- **`parseEnv(raw?)`** — a pure function that accepts a `NodeJS.ProcessEnv`-shaped object (defaults to `process.env`) and returns a typed `Env` object. Useful for tests.
+- **`env`** — the singleton, evaluated once at module load; any mis-configuration throws immediately with a human-readable message listing every failing field.
+
+```
+NODE_ENV       "development" | "production" | "test"   default: "development"
+PORT           integer 1–65535                          default: 3000
+HOSTNAME       string                                   default: "localhost"
+SESSION_SECRET string (optional)                        required at runtime by getSessionSecret() in production
+ALLOWED_ORIGINS string (optional)                       comma-separated origin list for WS upgrades
+```
+
+`PORT` is declared as `z.coerce.number()` so the string `"4000"` from the OS environment coerces cleanly to `4000`. All other vars remain strings.
+
+`server.ts` and `lib/api/session-token.ts` import from `lib/env.ts` instead of reading `process.env` directly; `process.env` references were removed from those files entirely.
+
+The companion `.env.example` at the repo root documents every supported variable with a comment.
+
+---
+
+## SEO & Discoverability
+
+Three layers of SEO infrastructure are implemented:
+
+**OpenGraph & Twitter cards** — `apps/web/app/layout.tsx` now exports a full `metadata` object with `openGraph` (type, title template, description, siteName) and `twitter.card: "summary_large_image"`. A 1200×630 OG image is generated at build time by `apps/web/app/opengraph-image.tsx` using `next/og`'s `ImageResponse` — no static image asset required. Next.js's file-convention automatically injects the generated URL into the root `<head>` and all child routes.
+
+**Per-route title template** — the root metadata uses `title: { default: "Battleship", template: "%s — Battleship" }`. Child route pages export only their segment title (e.g. `title: "New Game"`) and Next.js composes the full string automatically. This pattern keeps per-route metadata minimal:
+
+- `app/new/layout.tsx` — "New Game — Battleship"
+- `app/(protected)/game/[gameId]/page.tsx` — "Game — Battleship"
+
+A layout (`app/new/layout.tsx`) is used for `/new` rather than a direct export from `page.tsx` because `page.tsx` is a `"use client"` component; `metadata` exports are only valid in Server Components.
+
+**robots.txt & sitemap.xml** — `app/robots.ts` and `app/sitemap.ts` implement the Next.js file-convention route handlers. Both read `APP_URL` from the typed `env` object (with `http://localhost:3000` as a development fallback). Only the public marketing routes (`/`, `/new`) are listed in the sitemap; protected game routes are excluded.
+
+---
+
+## PWA Manifest & Icons
+
+`apps/web/app/manifest.ts` exposes `/manifest.webmanifest` via the Next.js file convention and returns:
+
+| Field              | Value                                                              |
+| ------------------ | ------------------------------------------------------------------ |
+| `name`             | "Battleship"                                                       |
+| `short_name`       | "Battleship"                                                       |
+| `display`          | "standalone" — launches without browser chrome                     |
+| `background_color` | `#0f172a` — matches the app's dark surface, suppresses white flash |
+| `theme_color`      | `#0f172a` — colours the mobile status bar / title bar              |
+| `start_url`        | `/` — opens to the lobby                                           |
+
+**Icons** are SVG files in `public/icons/`:
+
+- `icon.svg` — `purpose: "any"`, rounded-corner variant, served at any size via `sizes: "any"`
+- `icon-maskable.svg` — `purpose: "maskable"`, full-bleed background with letter centred within the 80 % safe zone, so adaptive icon masks (circle, squircle) never clip the "B"
+
+SVG was chosen over rasterised PNGs because: no build-time image-processing dependency is needed, the files are tiny and version-control friendly, and the Web App Manifest spec explicitly allows SVG. When brand assets mature, the SVG can be swapped for PNG entries without touching `manifest.ts`.
+
+`app/icon.tsx` generates the 32×32 browser-tab favicon via `next/og` `ImageResponse`, following the same pattern as `opengraph-image.tsx`. Next.js automatically injects `<link rel="icon">` into `<head>` for every route.
+
+---
+
+---
+
+## Idempotent REST Endpoints
+
+`POST /api/game/create` and `POST /api/game/join` now support the `Idempotency-Key` request header. When a client includes the header, the server:
+
+1. Checks `IdempotencyCache` (a `globalThis` singleton keyed by the header value).
+2. On a **cache hit** — returns the previously computed `{ gameId, playerId }` body and re-sets the session cookie, making the response byte-for-byte equivalent to the original.
+3. On a **cache miss** — executes the full request, then stores `{ gameId, playerId, cookieValue }` under the key with a 5-minute TTL.
+
+The `IdempotencyCache` class in `apps/web/lib/api/idempotency.ts` accepts injected `now` timestamps so TTL tests are deterministic (same pattern as `Clock`). The `cookieValue` is stored (not re-minted) so the replayed cookie is identical to the original — no dependency on the session-token module at replay time.
+
+**Rationale:** A double-click on "Create" or "Join" fires two near-simultaneous POST requests. Without idempotency, both succeed and create two separate game entries (or two player entries in the same game). The `Idempotency-Key` header (UUID generated on the client before the first submission) lets the server deduplicate safely. The client sets the key once per form submission; retries on network failure reuse the same key and receive the original outcome.
+
+---
+
+## Graceful Shutdown
+
+On `SIGTERM` or `SIGINT`, the server performs an orderly shutdown rather than dropping connections immediately:
+
+1. **Block new upgrades** — the `upgrade` event handler checks a `shuttingDown` flag and returns `503 Service Unavailable` to any new WS handshake, preventing new players from connecting mid-drain.
+2. **Notify active sessions** — `WebSocketHub.closeAll()` sends a `SHUTDOWN_NOTICE` server message to every open connection across all games, then closes each socket with code `1001 Going Away`. The client's existing reconnect logic (in `useWebSocket.ts`) receives the clean close and can display an appropriate UI state rather than a generic "Connection lost" error.
+3. **Drain** — a 10-second `setTimeout` allows any in-flight HTTP requests and WS frames to complete before `httpServer.close()` is called and the process exits with code `0`.
+
+The `SHUTDOWN_NOTICE` message type was added to the `ServerMessage` union in `packages/core/src/server/ws/protocol.ts` and is tested in `hub.test.ts`.
+
+**Rationale:** Without a `SIGTERM` handler, every deploy terminates active WS connections abruptly. Players mid-game see "Connection lost" on each release even when the deployment is otherwise healthy. The 10-second drain window matches common Fly.io/Kubernetes `terminationGracePeriodSeconds` defaults and is long enough to let clients receive the notice and stop attempting shots.
 
 ---
 

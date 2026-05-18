@@ -1,10 +1,5 @@
 import { applyPlacement, canPlace, createEmptyGrid } from "@battleship/core";
-import {
-  BoardCellStatus,
-  Coordinate,
-  Ship,
-  ShipOrientation,
-} from "@battleship/core";
+import { BoardCellStatus, Coordinate, Ship } from "@battleship/core";
 import { PlacementAction, PlacementState } from "./types";
 
 export type { PlacementAction, PlacementState };

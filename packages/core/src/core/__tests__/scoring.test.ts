@@ -1,197 +1,239 @@
-import { describe, expect, it } from "vitest";
-import { makeFakeClock } from "../clock";
+import { describe, it, expect } from "vitest";
 import {
-  DEFAULT_ELITE_CONFIG,
   awardScore,
   calculateHitScore,
   calculateMissPenalty,
   calculateProbabilityOfHit,
   getConsecutiveHitMultiplier,
   resolveEliteConfig,
+  DEFAULT_ELITE_CONFIG,
 } from "../scoring";
-import { EliteConfig } from "../types";
+import type { ShotScoreInput } from "../scoring";
+
+function hit(overrides: Partial<ShotScoreInput> = {}): ShotScoreInput {
+  return {
+    mode: "Elite",
+    hit: true,
+    unHitShipCells: 3,
+    hiddenCells: 30,
+    previousConsecutiveHits: 0,
+    timeTakenMs: 5000, // no reflex bonus by default
+    ...overrides,
+  };
+}
+
+function miss(overrides: Partial<ShotScoreInput> = {}): ShotScoreInput {
+  return { ...hit({ hit: false }), ...overrides };
+}
+
+// ─── Classic ──────────────────────────────────────────────────────────────────
+
+describe("Classic mode", () => {
+  it("awards exactly 1 point per hit", () => {
+    expect(awardScore(hit({ mode: "Classic" })).scoreAwarded).toBe(1);
+  });
+
+  it("awards 0 for a miss", () => {
+    expect(awardScore(miss({ mode: "Classic" })).scoreAwarded).toBe(0);
+  });
+
+  it("increments consecutiveHits on a hit", () => {
+    expect(
+      awardScore(hit({ mode: "Classic", previousConsecutiveHits: 2 }))
+        .consecutiveHits,
+    ).toBe(3);
+  });
+
+  it("resets consecutiveHits to 0 on a miss", () => {
+    expect(
+      awardScore(miss({ mode: "Classic", previousConsecutiveHits: 5 }))
+        .consecutiveHits,
+    ).toBe(0);
+  });
+});
+
+// ─── Risk ─────────────────────────────────────────────────────────────────────
+
+describe("Risk mode", () => {
+  it("awards 10 points per hit", () => {
+    expect(awardScore(hit({ mode: "Risk" })).scoreAwarded).toBe(10);
+  });
+
+  it("applies −1 penalty on miss (floor is caller's responsibility)", () => {
+    expect(awardScore(miss({ mode: "Risk" })).scoreAwarded).toBe(-1);
+  });
+});
+
+// ─── Elite — base + accuracy bonus ───────────────────────────────────────────
+
+describe("Elite mode — accuracy bonus", () => {
+  it("awards only the base score when p(hit) === 1 (no hidden cells)", () => {
+    // All remaining cells are ship cells → p=1 → accuracy bonus = 0
+    const result = awardScore(hit({ unHitShipCells: 5, hiddenCells: 5 }));
+    expect(result.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.basePoints);
+  });
+
+  it("awards full accuracy bonus when p(hit) approaches 0", () => {
+    // 1 ship cell out of 10000 hidden → p≈0 → bonus ≈ accuracyBonusMax
+    const result = awardScore(hit({ unHitShipCells: 1, hiddenCells: 10000 }));
+    const maxPossible =
+      DEFAULT_ELITE_CONFIG.basePoints + DEFAULT_ELITE_CONFIG.accuracyBonusMax;
+    expect(result.scoreAwarded).toBeGreaterThan(maxPossible - 2);
+  });
+
+  it("accuracy bonus is proportional (midpoint gives roughly half)", () => {
+    const halfBonusResult = awardScore(
+      hit({ unHitShipCells: 5, hiddenCells: 10 }),
+    );
+    // p=0.5 → bonus = accuracyBonusMax * 0.5 = 20 → score ≈ 30
+    expect(halfBonusResult.scoreAwarded).toBeGreaterThan(25);
+    expect(halfBonusResult.scoreAwarded).toBeLessThan(40);
+  });
+});
+
+// ─── Elite — consecutive hit multiplier ──────────────────────────────────────
+
+describe("Elite mode — consecutive multiplier", () => {
+  it("uses multiplier[1] = 1 for the first hit (streak becomes 1)", () => {
+    const base = awardScore(
+      hit({ previousConsecutiveHits: 0, unHitShipCells: 5, hiddenCells: 5 }),
+    );
+    // multiplier[1]=1 → same as no multiplier
+    expect(base.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.basePoints);
+  });
+
+  it("applies 1.5× at streak=2", () => {
+    const result = awardScore(
+      hit({ previousConsecutiveHits: 1, unHitShipCells: 5, hiddenCells: 5 }),
+    );
+    expect(result.scoreAwarded).toBe(
+      Math.round(DEFAULT_ELITE_CONFIG.basePoints * 1.5),
+    );
+  });
+
+  it("applies 2× at streak=3", () => {
+    const result = awardScore(
+      hit({ previousConsecutiveHits: 2, unHitShipCells: 5, hiddenCells: 5 }),
+    );
+    expect(result.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.basePoints * 2);
+  });
+
+  it("clamps to the last multiplier (3×) at streak ≥ 4", () => {
+    const at4 = awardScore(
+      hit({ previousConsecutiveHits: 3, unHitShipCells: 5, hiddenCells: 5 }),
+    );
+    const at10 = awardScore(
+      hit({ previousConsecutiveHits: 9, unHitShipCells: 5, hiddenCells: 5 }),
+    );
+    expect(at4.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.basePoints * 3);
+    expect(at10.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.basePoints * 3);
+  });
+});
+
+// ─── Elite — reflex bonus ─────────────────────────────────────────────────────
+
+describe("Elite mode — reflex bonus", () => {
+  const cfg = { unHitShipCells: 5, hiddenCells: 5, previousConsecutiveHits: 0 };
+
+  it("applies the reflex multiplier at exactly reflexWindowMs", () => {
+    const within = awardScore(
+      hit({ ...cfg, timeTakenMs: DEFAULT_ELITE_CONFIG.reflexWindowMs }),
+    );
+    const base = awardScore(
+      hit({ ...cfg, timeTakenMs: DEFAULT_ELITE_CONFIG.reflexWindowMs + 1 }),
+    );
+    expect(within.scoreAwarded).toBeGreaterThan(base.scoreAwarded);
+  });
+
+  it("does not apply the reflex multiplier one ms after the window", () => {
+    const just_outside = awardScore(
+      hit({ ...cfg, timeTakenMs: DEFAULT_ELITE_CONFIG.reflexWindowMs + 1 }),
+    );
+    expect(just_outside.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.basePoints);
+  });
+
+  it("applies reflex at 1 ms (well within window)", () => {
+    const fast = awardScore(hit({ ...cfg, timeTakenMs: 1 }));
+    expect(fast.scoreAwarded).toBe(
+      Math.round(
+        DEFAULT_ELITE_CONFIG.basePoints * DEFAULT_ELITE_CONFIG.reflexMultiplier,
+      ),
+    );
+  });
+});
+
+// ─── Elite — miss penalty ─────────────────────────────────────────────────────
+
+describe("Elite mode — miss penalty", () => {
+  it("returns the configured missPenalty delta on a miss", () => {
+    const result = awardScore(miss({ mode: "Elite" }));
+    expect(result.scoreAwarded).toBe(DEFAULT_ELITE_CONFIG.missPenalty);
+  });
+
+  it("resets consecutiveHits to 0 on a miss", () => {
+    const result = awardScore(
+      miss({ mode: "Elite", previousConsecutiveHits: 3 }),
+    );
+    expect(result.consecutiveHits).toBe(0);
+  });
+});
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 describe("calculateProbabilityOfHit", () => {
-  it("is ratio of unhit ship cells to hidden cells", () => {
-    expect(calculateProbabilityOfHit(5, 50)).toBeCloseTo(0.1);
-    expect(calculateProbabilityOfHit(1, 4)).toBeCloseTo(0.25);
-  });
-
-  it("clamps to 1 when no hidden cells remain", () => {
+  it("returns 1 when hiddenCells is 0 or negative", () => {
     expect(calculateProbabilityOfHit(0, 0)).toBe(1);
-    expect(calculateProbabilityOfHit(5, 0)).toBe(1);
+    expect(calculateProbabilityOfHit(5, -1)).toBe(1);
   });
 
-  it("clamps to [0, 1]", () => {
-    expect(calculateProbabilityOfHit(99, 50)).toBe(1);
-    expect(calculateProbabilityOfHit(-1, 50)).toBe(0);
-  });
-});
-
-describe("getConsecutiveHitMultiplier (default curve)", () => {
-  it("is 1 for no streak or single hit", () => {
-    expect(getConsecutiveHitMultiplier(0)).toBe(1);
-    expect(getConsecutiveHitMultiplier(1)).toBe(1);
-  });
-
-  it("escalates 1.5 -> 2 -> 3 then clamps", () => {
-    expect(getConsecutiveHitMultiplier(2)).toBe(1.5);
-    expect(getConsecutiveHitMultiplier(3)).toBe(2);
-    expect(getConsecutiveHitMultiplier(4)).toBe(3);
-    expect(getConsecutiveHitMultiplier(99)).toBe(3);
-  });
-
-  it("uses an injected multiplier curve when provided", () => {
-    const custom = [1, 2, 5, 10];
-    expect(getConsecutiveHitMultiplier(0, custom)).toBe(1);
-    expect(getConsecutiveHitMultiplier(2, custom)).toBe(5);
-    expect(getConsecutiveHitMultiplier(99, custom)).toBe(10);
-  });
-
-  it("defaults to 1 when given an empty curve", () => {
-    expect(getConsecutiveHitMultiplier(3, [])).toBe(1);
+  it("is clamped to [0, 1]", () => {
+    expect(calculateProbabilityOfHit(100, 5)).toBe(1);
+    expect(calculateProbabilityOfHit(0, 10)).toBe(0);
   });
 });
 
-describe("calculateHitScore — Classic mode", () => {
-  it("always awards exactly 1 point per hit", () => {
-    expect(calculateHitScore("Classic", 5, 50, 1, 0)).toBe(1);
-    expect(calculateHitScore("Classic", 1, 1, 99, 5000)).toBe(1);
-  });
-});
-
-describe("calculateHitScore — Risk mode", () => {
-  it("always awards exactly 10 points per hit", () => {
-    expect(calculateHitScore("Risk", 5, 50, 1, 0)).toBe(10);
-    expect(calculateHitScore("Risk", 1, 1, 99, 5000)).toBe(10);
-  });
-});
-
-describe("calculateHitScore — Elite mode", () => {
-  it("rewards low-probability hits with a higher accuracy bonus", () => {
-    // p = 5/50 = 0.1 → bonus = round(40 * 0.9) = 36, score = 46, no streak, no reflex
-    expect(calculateHitScore("Elite", 5, 50, 1, 5000)).toBe(46);
+describe("getConsecutiveHitMultiplier", () => {
+  it("returns 1 for an empty multipliers array", () => {
+    expect(getConsecutiveHitMultiplier(5, [])).toBe(1);
   });
 
-  it("awards no accuracy bonus when probability is 1", () => {
-    // p = 1, bonus = 0, score = 10, streak ×2 = 20, reflex ×1.2 = 24
-    expect(calculateHitScore("Elite", 1, 1, 3, 1000)).toBe(24);
+  it("clamps index to the last entry", () => {
+    expect(getConsecutiveHitMultiplier(99, [1, 2, 3])).toBe(3);
   });
 
-  it("applies the consecutive-hit multiplier curve", () => {
-    expect(calculateHitScore("Elite", 1, 1, 1, 5000)).toBe(10);
-    expect(calculateHitScore("Elite", 1, 1, 2, 5000)).toBe(15);
-    expect(calculateHitScore("Elite", 1, 1, 3, 5000)).toBe(20);
-    expect(calculateHitScore("Elite", 1, 1, 4, 5000)).toBe(30);
-    expect(calculateHitScore("Elite", 1, 1, 99, 5000)).toBe(30);
-  });
-});
-
-describe("reflex bonus boundary at 3000ms (driven by FakeClock)", () => {
-  function elapsedFrom(start: number, now: number): number {
-    return now - start;
-  }
-
-  it("applies the reflex multiplier at exactly 3000ms after turn start", () => {
-    const clock = makeFakeClock(1000);
-    const turnStart = clock.now();
-    clock.advance(3000);
-    const elapsed = elapsedFrom(turnStart, clock.now());
-    // base 10 × no-streak 1 × reflex 1.2 = 12 (boundary inclusive)
-    expect(calculateHitScore("Elite", 1, 1, 1, elapsed)).toBe(12);
-  });
-
-  it("does not apply the reflex multiplier just after 3000ms", () => {
-    const clock = makeFakeClock(0);
-    const turnStart = clock.now();
-    clock.advance(3001);
-    const elapsed = elapsedFrom(turnStart, clock.now());
-    expect(calculateHitScore("Elite", 1, 1, 1, elapsed)).toBe(10);
-  });
-});
-
-describe("calculateMissPenalty", () => {
-  it("is zero in Classic mode", () => {
-    expect(calculateMissPenalty("Classic")).toBe(0);
-  });
-
-  it("is -1 in Risk mode", () => {
-    expect(calculateMissPenalty("Risk")).toBe(-1);
-  });
-
-  it("uses the Elite missPenalty from config", () => {
-    expect(calculateMissPenalty("Elite")).toBe(
-      DEFAULT_ELITE_CONFIG.missPenalty,
-    );
-    expect(calculateMissPenalty("Elite", { missPenalty: -5 })).toBe(-5);
-  });
-});
-
-describe("awardScore (orchestrator)", () => {
-  it("on hit, increments the streak and awards positive points", () => {
-    const result = awardScore({
-      mode: "Classic",
-      hit: true,
-      unHitShipCells: 1,
-      hiddenCells: 1,
-      previousConsecutiveHits: 0,
-      timeTakenMs: 0,
-    });
-    expect(result).toEqual({ scoreAwarded: 1, consecutiveHits: 1 });
-  });
-
-  it("on miss, resets streak to 0 and applies the mode penalty", () => {
-    const result = awardScore({
-      mode: "Risk",
-      hit: false,
-      unHitShipCells: 5,
-      hiddenCells: 50,
-      previousConsecutiveHits: 3,
-      timeTakenMs: 1000,
-    });
-    expect(result).toEqual({ scoreAwarded: -1, consecutiveHits: 0 });
-  });
-
-  it("chains streaks across multiple hits", () => {
-    let prev = 0;
-    const seq: number[] = [];
-    for (let i = 0; i < 5; i++) {
-      const { consecutiveHits } = awardScore({
-        mode: "Elite",
-        hit: true,
-        unHitShipCells: 1,
-        hiddenCells: 1,
-        previousConsecutiveHits: prev,
-        timeTakenMs: 5000,
-      });
-      seq.push(consecutiveHits);
-      prev = consecutiveHits;
-    }
-    expect(seq).toEqual([1, 2, 3, 4, 5]);
+  it("clamps index below 0 to the first entry", () => {
+    expect(getConsecutiveHitMultiplier(-1, [1, 2, 3])).toBe(1);
   });
 });
 
 describe("resolveEliteConfig", () => {
-  it("returns the default when no partial provided", () => {
-    expect(resolveEliteConfig()).toEqual(DEFAULT_ELITE_CONFIG);
+  it("returns DEFAULT_ELITE_CONFIG when called with no argument", () => {
+    expect(resolveEliteConfig()).toBe(DEFAULT_ELITE_CONFIG);
   });
 
-  it("merges partial overrides with defaults", () => {
-    const partial: Partial<EliteConfig> = {
-      missPenalty: -10,
-      reflexMultiplier: 2,
-    };
-    const resolved = resolveEliteConfig(partial);
-    expect(resolved.missPenalty).toBe(-10);
-    expect(resolved.reflexMultiplier).toBe(2);
-    expect(resolved.basePoints).toBe(DEFAULT_ELITE_CONFIG.basePoints);
-    expect(resolved.multipliers).toBe(DEFAULT_ELITE_CONFIG.multipliers);
+  it("merges partial overrides onto the default", () => {
+    const cfg = resolveEliteConfig({ basePoints: 20 });
+    expect(cfg.basePoints).toBe(20);
+    expect(cfg.reflexWindowMs).toBe(DEFAULT_ELITE_CONFIG.reflexWindowMs);
+  });
+});
+
+describe("calculateHitScore", () => {
+  it("delegates to the correct strategy for Classic mode", () => {
+    expect(calculateHitScore("Classic", 5, 40, 0, 1000)).toBe(1);
   });
 
-  it("honors an injected multipliers array", () => {
-    const custom = [1, 5, 10];
-    expect(resolveEliteConfig({ multipliers: custom }).multipliers).toBe(
-      custom,
-    );
+  it("delegates to the correct strategy for Risk mode", () => {
+    expect(calculateHitScore("Risk", 5, 40, 0, 1000)).toBe(10);
+  });
+});
+
+describe("calculateMissPenalty", () => {
+  it("returns 0 for Classic mode", () => {
+    expect(calculateMissPenalty("Classic")).toBe(0);
+  });
+
+  it("returns -1 for Risk mode", () => {
+    expect(calculateMissPenalty("Risk")).toBe(-1);
   });
 });

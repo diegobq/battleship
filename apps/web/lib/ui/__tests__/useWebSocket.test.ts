@@ -1,56 +1,43 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, renderHook } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act } from "@testing-library/react";
 import { useWebSocket } from "../useWebSocket";
 
-// ─── MockWebSocket ────────────────────────────────────────────────────────────
-
+// Minimal WebSocket stub that captures event handlers and lets tests drive state.
 class MockWebSocket {
-  static instances: MockWebSocket[] = [];
   static OPEN = 1;
-  static CLOSING = 2;
-  static CLOSED = 3;
+  static instances: MockWebSocket[] = [];
 
   readyState = 0; // CONNECTING
-  url: string;
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
   onerror: (() => void) | null = null;
   onmessage: ((e: { data: string }) => void) | null = null;
-  sentMessages: string[] = [];
+  send = vi.fn();
+  close = vi.fn(() => {
+    this.readyState = 3;
+  });
 
-  constructor(url: string) {
-    this.url = url;
+  constructor(public url: string) {
     MockWebSocket.instances.push(this);
   }
 
-  open() {
+  simulateOpen() {
     this.readyState = 1;
     this.onopen?.();
   }
-  error() {
-    this.onerror?.();
+  simulateMessage(data: string) {
+    this.onmessage?.({ data });
   }
-  close() {
+  simulateClose() {
     this.readyState = 3;
     this.onclose?.();
   }
-  receive(data: string) {
-    this.onmessage?.({ data });
-  }
-
-  send(data: string) {
-    this.sentMessages.push(data);
+  simulateError() {
+    this.onerror?.();
   }
 }
-
-function lastSocket(): MockWebSocket {
-  return MockWebSocket.instances[MockWebSocket.instances.length - 1];
-}
-
-// ─── Test Setup ───────────────────────────────────────────────────────────────
 
 beforeEach(() => {
-  vi.useFakeTimers();
   MockWebSocket.instances = [];
   vi.stubGlobal("WebSocket", MockWebSocket);
 });
@@ -60,104 +47,79 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+function lastSocket(): MockWebSocket {
+  return MockWebSocket.instances[MockWebSocket.instances.length - 1];
+}
 
 describe("useWebSocket", () => {
-  it('starts in "connecting" state when url is provided', () => {
-    const { result } = renderHook(() =>
-      useWebSocket({ url: "ws://localhost/test" }),
-    );
+  it("starts in 'connecting' state when a url is provided", () => {
+    const { result } = renderHook(() => useWebSocket({ url: "ws://test" }));
     expect(result.current.state).toBe("connecting");
   });
 
-  it('starts in "idle" state when url is null', () => {
+  it("starts in 'idle' state when url is null", () => {
     const { result } = renderHook(() => useWebSocket({ url: null }));
     expect(result.current.state).toBe("idle");
   });
 
-  it('transitions to "open" when the socket connects', () => {
-    const { result } = renderHook(() =>
-      useWebSocket({ url: "ws://localhost/test" }),
-    );
-    act(() => {
-      lastSocket().open();
-    });
+  it("transitions to 'open' when the socket opens", () => {
+    const { result } = renderHook(() => useWebSocket({ url: "ws://test" }));
+    act(() => lastSocket().simulateOpen());
     expect(result.current.state).toBe("open");
   });
 
-  it('transitions to "error" on a socket error', () => {
+  it("transitions to 'closed' when the socket closes", () => {
+    vi.useFakeTimers();
     const { result } = renderHook(() =>
-      useWebSocket({ url: "ws://localhost/test" }),
+      useWebSocket({ url: "ws://test", maxReconnects: 0 }),
     );
-    act(() => {
-      lastSocket().error();
-    });
-    expect(result.current.state).toBe("error");
-  });
-
-  it('transitions to "closed" when socket closes with no reconnects remaining', () => {
-    const { result } = renderHook(() =>
-      useWebSocket({ url: "ws://localhost/test", maxReconnects: 0 }),
-    );
-    act(() => {
-      lastSocket().close();
-    });
+    act(() => lastSocket().simulateOpen());
+    act(() => lastSocket().simulateClose());
     expect(result.current.state).toBe("closed");
   });
 
-  it("delivers incoming messages to the onMessage callback", () => {
+  it("transitions to 'error' on a socket error", () => {
+    const { result } = renderHook(() => useWebSocket({ url: "ws://test" }));
+    act(() => lastSocket().simulateError());
+    expect(result.current.state).toBe("error");
+  });
+
+  it("delivers messages to the onMessage callback", () => {
     const onMessage = vi.fn();
-    renderHook(() => useWebSocket({ url: "ws://localhost/test", onMessage }));
+    renderHook(() => useWebSocket({ url: "ws://test", onMessage }));
     act(() => {
-      lastSocket().open();
-      lastSocket().receive(JSON.stringify({ type: "PONG" }));
+      lastSocket().simulateOpen();
+      lastSocket().simulateMessage(JSON.stringify({ type: "PONG" }));
     });
     expect(onMessage).toHaveBeenCalledWith(JSON.stringify({ type: "PONG" }));
   });
 
-  it("send() returns true and forwards data when socket is OPEN", () => {
-    const { result } = renderHook(() =>
-      useWebSocket({ url: "ws://localhost/test" }),
-    );
-    act(() => {
-      lastSocket().open();
-    });
-    let sent: boolean;
-    act(() => {
-      sent = result.current.send("hello");
-    });
-    expect(sent!).toBe(true);
-    expect(lastSocket().sentMessages).toContain("hello");
+  it("send() returns true and forwards data when the socket is OPEN", () => {
+    const { result } = renderHook(() => useWebSocket({ url: "ws://test" }));
+    act(() => lastSocket().simulateOpen());
+    const ok = result.current.send("hello");
+    expect(ok).toBe(true);
+    expect(lastSocket().send).toHaveBeenCalledWith("hello");
   });
 
-  it("send() returns false when socket is not OPEN", () => {
-    const { result } = renderHook(() =>
-      useWebSocket({ url: "ws://localhost/test" }),
-    );
-    // socket not yet open (readyState = 0)
-    let sent: boolean;
-    act(() => {
-      sent = result.current.send("hello");
-    });
-    expect(sent!).toBe(false);
+  it("send() returns false when the socket is not open", () => {
+    const { result } = renderHook(() => useWebSocket({ url: "ws://test" }));
+    // socket still connecting (readyState = 0)
+    const sent = result.current.send("hello");
+    expect(sent).toBe(false);
   });
 
-  it("reconnects after close when attempts remain", () => {
+  it("reconnects after close when maxReconnects > 0", () => {
+    vi.useFakeTimers();
     renderHook(() =>
-      useWebSocket({
-        url: "ws://localhost/test",
-        maxReconnects: 3,
-        baseBackoffMs: 1_000,
-      }),
+      useWebSocket({ url: "ws://test", maxReconnects: 2, baseBackoffMs: 100 }),
     );
-    const firstSocket = lastSocket();
     act(() => {
-      firstSocket.close();
+      lastSocket().simulateOpen();
+      lastSocket().simulateClose();
     });
-    act(() => {
-      vi.advanceTimersByTime(1_001);
-    });
-    const secondSocket = lastSocket();
-    expect(secondSocket).not.toBe(firstSocket);
+    const beforeReconnect = MockWebSocket.instances.length;
+    act(() => vi.advanceTimersByTime(200));
+    expect(MockWebSocket.instances.length).toBeGreaterThan(beforeReconnect);
   });
 });

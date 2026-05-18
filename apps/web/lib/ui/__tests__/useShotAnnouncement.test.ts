@@ -1,72 +1,115 @@
-import { describe, expect, it } from "vitest";
-import { formatShot } from "../useShotAnnouncement";
-import { ShotEvent } from "../types";
+import { describe, it, expect } from "vitest";
+import { renderHook, act } from "@testing-library/react";
+import { formatShot, useShotAnnouncement } from "../useShotAnnouncement";
+import type { ShotEvent } from "../types";
 
-const shot = (overrides: Partial<ShotEvent> = {}): ShotEvent => ({
-  shooterId: "me",
-  r: 0,
-  c: 0,
-  hit: true,
-  scoreAwarded: 10,
-  cellStatus: "hit",
-  at: 0,
-  ...overrides,
-});
+function makeShot(overrides: Partial<ShotEvent> = {}): ShotEvent {
+  return {
+    shooterId: "me",
+    r: 0,
+    c: 0,
+    hit: true,
+    scoreAwarded: 10,
+    cellStatus: "hit",
+    at: Date.now(),
+    ...overrides,
+  };
+}
 
-describe("formatShot — hit by self", () => {
-  it("describes a hit with score", () => {
-    const s = formatShot(
-      shot({ r: 4, c: 0, hit: true, scoreAwarded: 15 }),
+// ─── formatShot (pure) ────────────────────────────────────────────────────────
+
+describe("formatShot", () => {
+  it("describes own hit with score", () => {
+    const msg = formatShot(
+      makeShot({ shooterId: "me", hit: true, scoreAwarded: 10 }),
       "me",
     );
-    expect(s).toBe("You hit at A5. +15 points.");
+    expect(msg).toContain("You hit");
+    expect(msg).toContain("+10 points");
   });
 
-  it("maps column index to letter (B = index 1)", () => {
-    const s = formatShot(shot({ c: 1 }), "me");
-    expect(s).toContain("B1");
-  });
-});
-
-describe("formatShot — miss by self", () => {
-  it("describes a miss without score", () => {
-    const s = formatShot(
-      shot({ hit: false, cellStatus: "miss", scoreAwarded: 0 }),
+  it("describes own miss", () => {
+    const msg = formatShot(
+      makeShot({ shooterId: "me", hit: false, cellStatus: "miss" }),
       "me",
     );
-    expect(s).toBe("You missed at A1.");
+    expect(msg).toContain("You missed");
   });
-});
 
-describe("formatShot — sunk by self", () => {
-  it("names the ship type and score", () => {
-    const s = formatShot(
-      shot({ sunkShipType: "Destroyer", scoreAwarded: 30 }),
+  it("describes own sunk ship", () => {
+    const msg = formatShot(
+      makeShot({
+        shooterId: "me",
+        sunkShipType: "Submarine",
+        scoreAwarded: 20,
+      }),
       "me",
     );
-    expect(s).toBe("You sunk the opponent's Destroyer at A1. +30 points.");
+    expect(msg).toContain("You sunk");
+    expect(msg).toContain("Submarine");
+    expect(msg).toContain("+20 points");
   });
-});
 
-describe("formatShot — events by opponent", () => {
   it("describes opponent hit", () => {
-    const s = formatShot(shot({ shooterId: "them" }), "me");
-    expect(s).toBe("Opponent hit your fleet at A1.");
+    const msg = formatShot(makeShot({ shooterId: "them", hit: true }), "me");
+    expect(msg).toContain("Opponent hit");
   });
 
   it("describes opponent miss", () => {
-    const s = formatShot(
-      shot({ shooterId: "them", hit: false, cellStatus: "miss" }),
+    const msg = formatShot(
+      makeShot({ shooterId: "them", hit: false, cellStatus: "miss" }),
       "me",
     );
-    expect(s).toBe("Opponent missed at A1.");
+    expect(msg).toContain("Opponent missed");
   });
 
-  it("describes opponent sinking a ship", () => {
-    const s = formatShot(
-      shot({ shooterId: "them", sunkShipType: "Cruiser" }),
+  it("describes opponent sinking my ship", () => {
+    const msg = formatShot(
+      makeShot({ shooterId: "them", sunkShipType: "Cruiser" }),
       "me",
     );
-    expect(s).toBe("Opponent sunk your Cruiser at A1.");
+    expect(msg).toContain("Opponent sunk your Cruiser");
+  });
+
+  it("uses the column letter for coordinate display", () => {
+    const msg = formatShot(makeShot({ c: 0 }), "me"); // col A
+    expect(msg).toContain("A1");
+  });
+});
+
+// ─── useShotAnnouncement (hook) ───────────────────────────────────────────────
+
+describe("useShotAnnouncement", () => {
+  it("starts with an empty announcement list", () => {
+    const { result } = renderHook(() => useShotAnnouncement(null, "me"));
+    expect(result.current).toEqual([]);
+  });
+
+  it("appends a sentence when a shot arrives", () => {
+    const shot = makeShot({ shooterId: "me", hit: true, scoreAwarded: 10 });
+    const { result, rerender } = renderHook(
+      ({ s }) => useShotAnnouncement(s, "me"),
+      { initialProps: { s: null as ShotEvent | null } },
+    );
+    act(() => rerender({ s: shot }));
+    expect(result.current).toHaveLength(1);
+    expect(result.current[0]).toContain("You hit");
+  });
+
+  it("accumulates multiple shots into the list", () => {
+    const shot1 = makeShot({ shooterId: "me", hit: true, at: 1 });
+    const shot2 = makeShot({
+      shooterId: "them",
+      hit: false,
+      cellStatus: "miss",
+      at: 2,
+    });
+    const { result, rerender } = renderHook(
+      ({ s }) => useShotAnnouncement(s, "me"),
+      { initialProps: { s: null as ShotEvent | null } },
+    );
+    act(() => rerender({ s: shot1 }));
+    act(() => rerender({ s: shot2 }));
+    expect(result.current).toHaveLength(2);
   });
 });

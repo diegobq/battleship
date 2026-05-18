@@ -42,6 +42,14 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+// Strips zero-width and bidirectional-override codepoints that can produce
+// visually identical but distinct strings (homograph / name-spoofing attacks).
+const INVISIBLE_CODEPOINTS = /[​-‍﻿‪-‮⁦-⁩]/g;
+
+function sanitiseString(s: string): string {
+  return s.normalize("NFKC").replace(INVISIBLE_CODEPOINTS, "");
+}
+
 function requireString(
   record: Record<string, unknown>,
   key: string,
@@ -55,15 +63,22 @@ function requireString(
       `'${key}' is required and must be a non-empty string.`,
     );
   }
-  const trimmed = v.trim();
-  if (trimmed.length > max) {
+  const sanitised = sanitiseString(v.trim());
+  if (sanitised.length === 0) {
+    throw new ApiError(
+      400,
+      "BAD_REQUEST",
+      `'${key}' is required and must be a non-empty string.`,
+    );
+  }
+  if (sanitised.length > max) {
     throw new ApiError(
       400,
       "BAD_REQUEST",
       `'${key}' must be at most ${max} characters.`,
     );
   }
-  return trimmed;
+  return sanitised;
 }
 
 export function parseCreateGameRequest(body: unknown): CreateGameRequest {

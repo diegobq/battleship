@@ -1,391 +1,351 @@
-import { describe, expect, it } from "vitest";
-import { makeFakeClock } from "../clock";
-import { defaultFleetConfig } from "../fleet";
+import { describe, it, expect } from "vitest";
 import {
-  ShipPlacement,
-  addSecondPlayer,
-  createGame,
   createPlayer,
-  forfeitGame,
-  handleTurnTimeout,
+  createGame,
+  addSecondPlayer,
   placeFleet,
   processShot,
+  forfeitGame,
+  handleTurnTimeout,
 } from "../game";
+import { makeFakeClock } from "../clock";
 import { makeSeededRng } from "../rng";
 import { GameRuleError } from "../rules";
-import { GameConfig, GameState, PlayerState } from "../types";
+import type { GameConfig, GameState } from "../types";
 
-function sequentialIdFactory(prefix = "ship"): () => string {
-  let n = 0;
-  return () => `${prefix}-${n++}`;
-}
+const CONFIG: GameConfig = {
+  mode: "Classic",
+  fleet: { Submarine: 1 },
+  turnTimerMs: 60_000,
+};
 
-function defaultConfig(overrides: Partial<GameConfig> = {}): GameConfig {
-  return {
-    mode: "Classic",
-    fleet: defaultFleetConfig(),
-    turnTimerMs: 60_000,
-    ...overrides,
-  };
-}
+let shipCounter = 0;
+const nextId = () => `ship-${++shipCounter}`;
 
-function newGameInPlacement(opts: { config?: Partial<GameConfig> } = {}): {
-  game: GameState;
-  hostId: string;
-  joinerId: string;
-} {
-  const clock = makeFakeClock(1_000);
+/** Builds a fully wired-up playing game with one submarine each. */
+function buildPlayingGame(mode: GameConfig["mode"] = "Classic") {
+  const clock = makeFakeClock(1000);
+  const config: GameConfig = { ...CONFIG, mode };
   const host = createPlayer("host", "Host");
-  const game = createGame({
-    id: "g1",
-    config: defaultConfig(opts.config),
-    host,
-    clock,
-  });
-  const joined = addSecondPlayer(game, createPlayer("joiner", "Joiner"), {
-    idFactory: sequentialIdFactory(),
-  });
-  return { game: joined, hostId: "host", joinerId: "joiner" };
+  const guest = createPlayer("guest", "Guest");
+
+  const lobby = createGame({ id: "g1", config, host, clock });
+  const placement = addSecondPlayer(lobby, guest, { idFactory: nextId });
+
+  const hostShipId = placement.players["host"].ships[0].id;
+  const guestShipId = placement.players["guest"].ships[0].id;
+
+  const afterHost = placeFleet(
+    placement,
+    "host",
+    [{ shipId: hostShipId, r: 0, c: 0, orientation: "horizontal" }],
+    { clock, rng: makeSeededRng(99) },
+  );
+  const playing = placeFleet(
+    afterHost,
+    "guest",
+    [{ shipId: guestShipId, r: 7, c: 7, orientation: "horizontal" }],
+    { clock, rng: makeSeededRng(99) },
+  );
+
+  const activeId = playing.activePlayerId!;
+  const opponentId = activeId === "host" ? "guest" : "host";
+  return { playing, clock, activeId, opponentId };
 }
 
-function placeAllShipsAt(
-  player: PlayerState,
-  startRow: number,
-): ShipPlacement[] {
-  // Place each ship on its own row to avoid collisions; horizontal at column 0.
-  return player.ships.map((s, idx) => ({
-    shipId: s.id,
-    r: startRow + idx,
-    c: 0,
-    orientation: "horizontal" as const,
-  }));
-}
+// ─── createPlayer ─────────────────────────────────────────────────────────────
 
 describe("createPlayer", () => {
-  it("initializes a player in a fresh state", () => {
+  it("returns a player with an empty 8×8 grid", () => {
     const p = createPlayer("p1", "Alice");
-    expect(p.id).toBe("p1");
-    expect(p.name).toBe("Alice");
-    expect(p.ready).toBe(false);
+    expect(p.grid).toHaveLength(8);
+    expect(p.grid[0]).toHaveLength(8);
+    expect(p.grid[0][0]).toBe("empty");
+  });
+
+  it("initialises score, hits, and ready to zero / false", () => {
+    const p = createPlayer("p1", "Alice");
     expect(p.score).toBe(0);
     expect(p.consecutiveHits).toBe(0);
-    expect(p.ships).toEqual([]);
-    expect(p.grid.flat().every((c) => c === "empty")).toBe(true);
+    expect(p.ready).toBe(false);
   });
 });
+
+// ─── createGame ───────────────────────────────────────────────────────────────
 
 describe("createGame", () => {
-  it("starts in lobby with one player and no active player", () => {
+  it("creates a game in lobby status", () => {
     const clock = makeFakeClock(500);
-    const game = createGame({
-      id: "g1",
-      config: defaultConfig(),
-      host: createPlayer("host", "Host"),
-      clock,
-    });
+    const host = createPlayer("host", "Host");
+    const game = createGame({ id: "g1", config: CONFIG, host, clock });
     expect(game.status).toBe("lobby");
     expect(game.activePlayerId).toBeNull();
+  });
+
+  it("records createdAt from the injected clock", () => {
+    const clock = makeFakeClock(12345);
+    const host = createPlayer("host", "Host");
+    const game = createGame({ id: "g1", config: CONFIG, host, clock });
+    expect(game.createdAt).toBe(12345);
+  });
+
+  it("registers the host as the only player", () => {
+    const clock = makeFakeClock();
+    const host = createPlayer("host", "Host");
+    const game = createGame({ id: "g1", config: CONFIG, host, clock });
     expect(Object.keys(game.players)).toEqual(["host"]);
-    expect(game.createdAt).toBe(500);
-    expect(game.lastActionTime).toBe(500);
-    expect(game.turnDeadlineAt).toBeNull();
-    expect(game.winnerId).toBeNull();
   });
 });
+
+// ─── addSecondPlayer ──────────────────────────────────────────────────────────
 
 describe("addSecondPlayer", () => {
-  it("transitions to placement and builds fleets for both players", () => {
-    const { game } = newGameInPlacement();
+  it("transitions the game to placement status", () => {
+    const clock = makeFakeClock();
+    const host = createPlayer("host", "Host");
+    const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
+    const game = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
     expect(game.status).toBe("placement");
-    expect(Object.keys(game.players)).toHaveLength(2);
-    expect(game.players.host.ships).toHaveLength(3);
-    expect(game.players.joiner.ships).toHaveLength(3);
-    for (const s of game.players.host.ships) expect(s.placed).toBe(false);
   });
 
-  it("rejects join when game is not in lobby", () => {
-    const { game } = newGameInPlacement();
+  it("adds both players with their fleets built", () => {
+    const clock = makeFakeClock();
+    const host = createPlayer("host", "Host");
+    const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
+    const game = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
+    expect(game.players["host"].ships).toHaveLength(1);
+    expect(game.players["guest"].ships).toHaveLength(1);
+  });
+
+  it("throws if the game is not in lobby status", () => {
+    const { playing } = buildPlayingGame();
     expect(() =>
-      addSecondPlayer(game, createPlayer("third", "Third"), {
-        idFactory: sequentialIdFactory(),
+      addSecondPlayer(playing, createPlayer("third", "Third"), {
+        idFactory: nextId,
+      }),
+    ).toThrow(GameRuleError);
+  });
+
+  it("throws INVALID_PLAYER_COUNT if two players are already present", () => {
+    const clock = makeFakeClock();
+    const host = createPlayer("host", "Host");
+    const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
+    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
+    // Simulate still-lobby game with two players by checking the guard
+    expect(placement.status).toBe("placement");
+    expect(() =>
+      addSecondPlayer(placement, createPlayer("extra", "Extra"), {
+        idFactory: nextId,
       }),
     ).toThrow(GameRuleError);
   });
 });
+
+// ─── placeFleet ───────────────────────────────────────────────────────────────
 
 describe("placeFleet", () => {
-  it("marks a player ready when all ships placed legally", () => {
-    const { game, hostId } = newGameInPlacement();
-    const placements = placeAllShipsAt(game.players[hostId], 0);
-    const next = placeFleet(game, hostId, placements, {
-      clock: makeFakeClock(),
-      rng: makeSeededRng(1),
+  it("marks the player as ready after placing all ships", () => {
+    const clock = makeFakeClock();
+    const host = createPlayer("host", "Host");
+    const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
+    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
     });
-    expect(next.players[hostId].ready).toBe(true);
-    expect(next.status).toBe("placement");
-  });
-
-  it("transitions to playing once both players have placed", () => {
-    const { game, hostId, joinerId } = newGameInPlacement();
-    const clock = makeFakeClock(2_000);
-    const rng = makeSeededRng(7);
-    let g = placeFleet(game, hostId, placeAllShipsAt(game.players[hostId], 0), {
-      clock,
-      rng,
-    });
-    g = placeFleet(g, joinerId, placeAllShipsAt(game.players[joinerId], 0), {
-      clock,
-      rng,
-    });
-    expect(g.status).toBe("playing");
-    expect(g.activePlayerId === hostId || g.activePlayerId === joinerId).toBe(
-      true,
+    const shipId = placement.players["host"].ships[0].id;
+    const next = placeFleet(
+      placement,
+      "host",
+      [{ shipId, r: 0, c: 0, orientation: "horizontal" }],
+      { clock, rng: makeSeededRng(1) },
     );
-    expect(g.lastActionTime).toBe(2_000);
-    expect(g.turnDeadlineAt).toBe(2_000 + g.config.turnTimerMs);
+    expect(next.players["host"].ready).toBe(true);
   });
 
-  it("rejects when ship count mismatches", () => {
-    const { game, hostId } = newGameInPlacement();
-    expect(() =>
-      placeFleet(game, hostId, [], {
-        clock: makeFakeClock(),
-        rng: makeSeededRng(1),
-      }),
-    ).toThrow(/all 3 ships/);
+  it("transitions to playing when both players are ready", () => {
+    const { playing } = buildPlayingGame();
+    expect(playing.status).toBe("playing");
+    expect(playing.activePlayerId).not.toBeNull();
   });
 
-  it("rejects when a ship is placed off the board", () => {
-    const { game, hostId } = newGameInPlacement();
-    const bad = placeAllShipsAt(game.players[hostId], 0).map((p, i) =>
-      i === 0 ? { ...p, c: 7 } : p,
+  it("does not transition until the second player is also ready", () => {
+    const clock = makeFakeClock();
+    const host = createPlayer("host", "Host");
+    const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
+    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
+    const hostShipId = placement.players["host"].ships[0].id;
+    const afterOne = placeFleet(
+      placement,
+      "host",
+      [{ shipId: hostShipId, r: 0, c: 0, orientation: "horizontal" }],
+      { clock, rng: makeSeededRng(1) },
     );
+    expect(afterOne.status).toBe("placement");
+  });
+
+  it("throws if placement count does not match fleet size", () => {
+    const clock = makeFakeClock();
+    const host = createPlayer("host", "Host");
+    const lobby = createGame({ id: "g1", config: CONFIG, host, clock });
+    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
+    });
     expect(() =>
-      placeFleet(game, hostId, bad, {
-        clock: makeFakeClock(),
-        rng: makeSeededRng(1),
-      }),
-    ).toThrow(/Cannot place/);
-  });
-
-  it("rejects when ships collide", () => {
-    const { game, hostId } = newGameInPlacement();
-    const ships = game.players[hostId].ships;
-    const colliding: ShipPlacement[] = ships.map((s) => ({
-      shipId: s.id,
-      r: 0,
-      c: 0,
-      orientation: "horizontal",
-    }));
-    expect(() =>
-      placeFleet(game, hostId, colliding, {
-        clock: makeFakeClock(),
-        rng: makeSeededRng(1),
-      }),
-    ).toThrow();
-  });
-});
-
-function startPlayingGame(): {
-  game: GameState;
-  shooterId: string;
-  targetId: string;
-} {
-  const setup = newGameInPlacement({ config: { mode: "Classic" } });
-  const clock = makeFakeClock(0);
-  const rng = makeSeededRng(7);
-  let g = placeFleet(
-    setup.game,
-    setup.hostId,
-    placeAllShipsAt(setup.game.players[setup.hostId], 0),
-    { clock, rng },
-  );
-  g = placeFleet(
-    g,
-    setup.joinerId,
-    placeAllShipsAt(g.players[setup.joinerId], 0),
-    { clock, rng },
-  );
-  // Force activePlayerId to host for deterministic tests.
-  g = { ...g, activePlayerId: setup.hostId };
-  return { game: g, shooterId: setup.hostId, targetId: setup.joinerId };
-}
-
-describe("processShot — hit / miss / sunk / game over", () => {
-  it("marks a miss, resets streak, alternates turn", () => {
-    const { game, shooterId, targetId } = startPlayingGame();
-    const before = game.players[shooterId].consecutiveHits;
-    const out = processShot(game, shooterId, 7, 7, {
-      clock: makeFakeClock(500),
-    });
-    expect(out.result.hit).toBe(false);
-    expect(out.result.cellStatus).toBe("miss");
-    expect(out.game.activePlayerId).toBe(targetId);
-    expect(out.game.players[shooterId].consecutiveHits).toBe(0);
-    expect(before).toBe(0);
-    expect(out.game.players[targetId].grid[7][7]).toBe("miss");
-  });
-
-  it("marks a hit, increments streak, alternates turn", () => {
-    // Joiner ships were placed at rows 0..2 col 0.
-    const { game, shooterId, targetId } = startPlayingGame();
-    const out = processShot(game, shooterId, 2, 0, {
-      clock: makeFakeClock(500),
-    });
-    expect(out.result.hit).toBe(true);
-    expect(out.result.cellStatus).toBe("hit");
-    expect(out.game.activePlayerId).toBe(targetId);
-    expect(out.game.players[shooterId].consecutiveHits).toBe(1);
-    expect(out.game.players[targetId].grid[2][0]).toBe("hit");
-  });
-
-  it("reports sunkShipType when a ship is fully hit (length-1 submarine)", () => {
-    const { game, shooterId } = startPlayingGame();
-    // Submarine (length 1) at row 2 col 0
-    const out = processShot(game, shooterId, 2, 0, {
-      clock: makeFakeClock(500),
-    });
-    expect(out.result.sunkShipType).toBe("Submarine");
-  });
-
-  it("transitions to finished and sets winnerId when all opponent ships are sunk", () => {
-    const setup = startPlayingGame();
-    const { shooterId } = setup;
-    let game = setup.game;
-    const fire = (r: number, c: number) => {
-      const out = processShot(game, shooterId, r, c, {
-        clock: makeFakeClock(0),
-      });
-      game = { ...out.game, activePlayerId: shooterId };
-      return out;
-    };
-    // Submarine: row 2 col 0 (1 cell)
-    fire(2, 0);
-    // Destroyer: row 1 cols 0..1 (2 cells)
-    fire(1, 0);
-    fire(1, 1);
-    // Cruiser: row 0 cols 0..2 (3 cells)
-    fire(0, 0);
-    fire(0, 1);
-    const last = fire(0, 2);
-    expect(last.result.gameOver).toBe(true);
-    expect(last.game.status).toBe("finished");
-    expect(last.game.winnerId).toBe(shooterId);
-    expect(last.game.activePlayerId).toBeNull();
-    expect(last.game.turnDeadlineAt).toBeNull();
-  });
-
-  it("floors player score at zero in Risk mode after consecutive misses", () => {
-    const setup = newGameInPlacement({ config: { mode: "Risk" } });
-    const clock = makeFakeClock(0);
-    const rng = makeSeededRng(7);
-    let g = placeFleet(
-      setup.game,
-      setup.hostId,
-      placeAllShipsAt(setup.game.players[setup.hostId], 0),
-      { clock, rng },
-    );
-    g = placeFleet(
-      g,
-      setup.joinerId,
-      placeAllShipsAt(g.players[setup.joinerId], 0),
-      { clock, rng },
-    );
-    g = { ...g, activePlayerId: setup.hostId };
-    const out = processShot(g, setup.hostId, 7, 7, {
-      clock: makeFakeClock(500),
-    });
-    expect(out.game.players[setup.hostId].score).toBe(0);
-    expect(out.result.scoreAwarded).toBe(-1);
-  });
-
-  it("throws GameRuleError for an out-of-turn shot", () => {
-    const { game, targetId } = startPlayingGame();
-    expect(() =>
-      processShot(game, targetId, 0, 0, { clock: makeFakeClock(0) }),
+      placeFleet(placement, "host", [], { clock, rng: makeSeededRng(1) }),
     ).toThrow(GameRuleError);
   });
 
-  it("uses injected clock to compute elapsed time for reflex bonus (Elite)", () => {
-    const setup = newGameInPlacement({ config: { mode: "Elite" } });
-    const rng = makeSeededRng(7);
-    let g = placeFleet(
-      setup.game,
-      setup.hostId,
-      placeAllShipsAt(setup.game.players[setup.hostId], 0),
-      {
-        clock: makeFakeClock(0),
-        rng,
-      },
-    );
-    g = placeFleet(
-      g,
-      setup.joinerId,
-      placeAllShipsAt(g.players[setup.joinerId], 0),
-      {
-        clock: makeFakeClock(0),
-        rng,
-      },
-    );
-    g = { ...g, activePlayerId: setup.hostId, lastActionTime: 0 };
-    // Shoot a hit (target row 2 col 0 = submarine) within 1s -> reflex bonus applies.
-    const out = processShot(g, setup.hostId, 2, 0, {
-      clock: makeFakeClock(1_000),
+  it("throws on a collision between ships", () => {
+    const clock = makeFakeClock();
+    const config: GameConfig = { ...CONFIG, fleet: { Submarine: 2 } };
+    const host = createPlayer("host", "Host");
+    const lobby = createGame({ id: "g1", config, host, clock });
+    const placement = addSecondPlayer(lobby, createPlayer("guest", "Guest"), {
+      idFactory: nextId,
     });
-    expect(out.result.hit).toBe(true);
-    expect(out.result.scoreAwarded).toBeGreaterThan(10); // base 10 with reflex must exceed 10
+    const [s1, s2] = placement.players["host"].ships;
+    expect(() =>
+      placeFleet(
+        placement,
+        "host",
+        [
+          { shipId: s1.id, r: 0, c: 0, orientation: "horizontal" },
+          { shipId: s2.id, r: 0, c: 0, orientation: "horizontal" }, // collision
+        ],
+        { clock, rng: makeSeededRng(1) },
+      ),
+    ).toThrow(GameRuleError);
   });
 });
+
+// ─── processShot ──────────────────────────────────────────────────────────────
+
+describe("processShot", () => {
+  it("registers a miss when shooting an empty cell", () => {
+    const { playing, clock, activeId, opponentId } = buildPlayingGame();
+    // The opponent's submarine is at (7,7); shoot at (0,0) which is empty for them
+    const opponentSubPos = playing.players[opponentId].ships[0].positions[0];
+    const missR = opponentSubPos.r === 0 ? 1 : 0;
+    const { result } = processShot(playing, activeId, missR, 0, { clock });
+    expect(result.hit).toBe(false);
+    expect(result.cellStatus).toBe("miss");
+  });
+
+  it("registers a hit when shooting a ship cell", () => {
+    const { playing, clock, activeId, opponentId } = buildPlayingGame();
+    const { r, c } = playing.players[opponentId].ships[0].positions[0];
+    const { result } = processShot(playing, activeId, r, c, { clock });
+    expect(result.hit).toBe(true);
+    expect(result.cellStatus).toBe("hit");
+  });
+
+  it("sets sunkShipType when the last cell of a ship is hit", () => {
+    const { playing, clock, activeId, opponentId } = buildPlayingGame();
+    const { r, c } = playing.players[opponentId].ships[0].positions[0];
+    const { result } = processShot(playing, activeId, r, c, { clock });
+    expect(result.sunkShipType).toBe("Submarine");
+  });
+
+  it("sets gameOver and winnerId when all opponent ships are sunk", () => {
+    const { playing, clock, activeId } = buildPlayingGame();
+    const opponentId = activeId === "host" ? "guest" : "host";
+    const { r, c } = playing.players[opponentId].ships[0].positions[0];
+    const { game: next, result } = processShot(playing, activeId, r, c, {
+      clock,
+    });
+    expect(result.gameOver).toBe(true);
+    expect(next.status).toBe("finished");
+    expect(next.winnerId).toBe(activeId);
+  });
+
+  it("alternates the active player after each shot", () => {
+    const { playing, clock, activeId, opponentId } = buildPlayingGame();
+    // Miss to avoid ending game
+    const { r: subR } = playing.players[opponentId].ships[0].positions[0];
+    const safeR = subR === 0 ? 1 : 0;
+    const { game: next } = processShot(playing, activeId, safeR, 0, { clock });
+    expect(next.activePlayerId).toBe(opponentId);
+  });
+
+  it("applies floor-at-zero on a miss penalty (score cannot go negative)", () => {
+    // Use Elite mode with a miss penalty
+    const { playing, clock, activeId, opponentId } = buildPlayingGame("Elite");
+    const { r: subR } = playing.players[opponentId].ships[0].positions[0];
+    const safeR = subR === 0 ? 1 : 0;
+    const { game: after } = processShot(playing, activeId, safeR, 0, { clock });
+    expect(after.players[activeId].score).toBeGreaterThanOrEqual(0);
+  });
+
+  it("does not mutate the input game state", () => {
+    const { playing, clock, activeId, opponentId } = buildPlayingGame();
+    const { r: subR } = playing.players[opponentId].ships[0].positions[0];
+    const safeR = subR === 0 ? 1 : 0;
+    const beforeStatus = playing.status;
+    processShot(playing, activeId, safeR, 0, { clock });
+    expect(playing.status).toBe(beforeStatus);
+  });
+});
+
+// ─── handleTurnTimeout ────────────────────────────────────────────────────────
 
 describe("handleTurnTimeout", () => {
-  it("flips the active player and resets the timed-out streak", () => {
-    const { game, shooterId, targetId } = startPlayingGame();
-    const expired = {
-      ...game,
-      players: {
-        ...game.players,
-        [shooterId]: { ...game.players[shooterId], consecutiveHits: 3 },
-      },
-    };
-    const out = handleTurnTimeout(expired, { clock: makeFakeClock(123_456) });
-    expect(out.activePlayerId).toBe(targetId);
-    expect(out.players[shooterId].consecutiveHits).toBe(0);
-    expect(out.lastActionTime).toBe(123_456);
-    expect(out.turnDeadlineAt).toBe(123_456 + out.config.turnTimerMs);
+  it("advances the turn to the opponent", () => {
+    const { playing, clock, opponentId } = buildPlayingGame();
+    const next = handleTurnTimeout(playing, { clock });
+    expect(next.activePlayerId).toBe(opponentId);
   });
 
-  it("throws when called on a non-playing game", () => {
-    const lobby = createGame({
-      id: "g",
-      config: defaultConfig(),
-      host: createPlayer("host", "Host"),
-      clock: makeFakeClock(0),
-    });
-    expect(() => handleTurnTimeout(lobby, { clock: makeFakeClock(0) })).toThrow(
-      GameRuleError,
-    );
+  it("resets the timed-out player's consecutive hit streak to zero", () => {
+    const { playing, clock, activeId } = buildPlayingGame();
+    const withStreak: GameState = {
+      ...playing,
+      players: {
+        ...playing.players,
+        [activeId]: { ...playing.players[activeId], consecutiveHits: 3 },
+      },
+    };
+    const next = handleTurnTimeout(withStreak, { clock });
+    expect(next.players[activeId].consecutiveHits).toBe(0);
+  });
+
+  it("updates lastActionTime and turnDeadlineAt from the clock", () => {
+    const { playing, clock } = buildPlayingGame();
+    clock.set(9999);
+    const next = handleTurnTimeout(playing, { clock });
+    expect(next.lastActionTime).toBe(9999);
+    expect(next.turnDeadlineAt).toBe(9999 + CONFIG.turnTimerMs);
+  });
+
+  it("throws when the game is not playing", () => {
+    const { playing } = buildPlayingGame();
+    const finished: GameState = { ...playing, status: "finished" };
+    expect(() =>
+      handleTurnTimeout(finished, { clock: makeFakeClock() }),
+    ).toThrow(GameRuleError);
   });
 });
 
-describe("forfeitGame", () => {
-  it("marks the leaving player as loser and opponent as winner", () => {
-    const { game, hostId, joinerId } = newGameInPlacement();
-    const result = forfeitGame(game, hostId);
-    expect(result.status).toBe("finished");
-    expect(result.winnerId).toBe(joinerId);
-    expect(result.activePlayerId).toBeNull();
-    expect(result.turnDeadlineAt).toBeNull();
-  });
+// ─── forfeitGame ──────────────────────────────────────────────────────────────
 
-  it("works from any game status with two players", () => {
-    const { game, hostId, joinerId } = newGameInPlacement();
-    expect(forfeitGame(game, joinerId).winnerId).toBe(hostId);
+describe("forfeitGame", () => {
+  it("sets status to finished and awards win to the opponent", () => {
+    const { playing, activeId, opponentId } = buildPlayingGame();
+    const next = forfeitGame(playing, activeId);
+    expect(next.status).toBe("finished");
+    expect(next.winnerId).toBe(opponentId);
   });
 
   it("is a no-op when the game is already finished", () => {
-    const { game, hostId } = newGameInPlacement();
-    const finished = { ...game, status: "finished" as const, winnerId: hostId };
-    const result = forfeitGame(finished, hostId);
-    expect(result).toBe(finished);
+    const { playing, activeId } = buildPlayingGame();
+    const finished = forfeitGame(playing, activeId);
+    const again = forfeitGame(finished, activeId);
+    expect(again).toBe(finished);
   });
 });

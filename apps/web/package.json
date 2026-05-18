@@ -6,20 +6,29 @@
     "dev": "tsx server.ts",
     "build": "next build",
     "start": "NODE_ENV=production tsx server.ts",
-    "test": "vitest run",
+    "test": "vitest run && playwright test",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:a11y": "playwright test",
+    "test:a11y:ui": "playwright test --ui",
     "lint": "eslint app/ lib/",
-    "typecheck": "tsc --noEmit"
+    "lint:fix": "eslint app/ lib/ --fix",
+    "typecheck": "tsc --noEmit",
+    "analyze": "ANALYZE=true next experimental-analyze --output",
+    "lighthouse": "lighthouse http://localhost:3000 --output html --output-path .lighthouse/report.html --chrome-flags=\"--headless\""
   },
   "dependencies": {
     "@battleship/core": "workspace:*",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "ws": "^8.20.0"
+    "ws": "^8.20.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
+    "@next/bundle-analyzer": "^16.2.6",
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -31,7 +40,8 @@
     "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
-    "jsdom": "^29.1.1",
+    "happy-dom": "^20.9.0",
+    "lighthouse": "^13.3.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
