@@ -1,8 +1,37 @@
 # SOLUTION-2.md — Exercise 2: Testing Strategy & Coverage
 
-## 1. Overview
-
 The test suite covers the full Battleship application stack across three independent test runners — two Vitest runners (unit, integration, and behavioural) plus a Playwright suite for accessibility. Together they contain **361 Vitest tests across 30 files** plus **3 Playwright a11y tests**, and exceed all configured coverage thresholds.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Test Architecture](#test-architecture)
+  - [Three-runner setup](#three-runner-setup)
+  - [Why happy-dom instead of jsdom](#why-happy-dom-instead-of-jsdom)
+  - [Coverage thresholds](#coverage-thresholds)
+  - [Layering](#layering)
+- [Test Plan — Module by Module](#test-plan--module-by-module)
+- [When Each Test Class Runs](#when-each-test-class-runs)
+- [Key Testing Decisions](#key-testing-decisions)
+  - [TDD discipline — tests written before implementation for core logic](#tdd-discipline--tests-written-before-implementation-for-core-logic)
+  - [Clock and RNG are injected, never globally mocked](#clock-and-rng-are-injected-never-globally-mocked)
+  - [vi.useFakeTimers() only where real setTimeout is used](#viusefaketimers-only-where-real-settimeout-is-used)
+  - [Mocks only at system boundaries with a stated reason](#mocks-only-at-system-boundaries-with-a-stated-reason)
+  - [Execution-order independence](#execution-order-independence)
+  - [Contract testing — REST and WebSocket protocol shapes](#contract-testing--rest-and-websocket-protocol-shapes)
+  - [No redundant tests](#no-redundant-tests)
+- [Coverage Results](#coverage-results)
+- [Known Gaps & Follow-ons](#known-gaps--follow-ons)
+  - [React component rendering (Board, ShipPalette, HUD)](#react-component-rendering-board-shipppalette-hud)
+  - [Real WebSocket end-to-end against server.ts](#real-websocket-end-to-end-against-serverts)
+  - [Accessibility testing and the colour-contrast fix](#accessibility-testing-and-the-colour-contrast-fix)
+  - [Functional Playwright E2E (Phase 2)](#functional-playwright-e2e-phase-2)
+  - [Load and mutation testing](#load-and-mutation-testing)
+  - [CI pipeline](#ci-pipeline)
+
+---
+
+## Overview
 
 The design is driven by three principles:
 
@@ -12,7 +41,7 @@ The design is driven by three principles:
 
 ---
 
-## 2. Test Architecture
+## Test Architecture
 
 ### Three-runner setup
 
@@ -46,7 +75,7 @@ The initial runner used jsdom. jsdom 29.1.1 transitively requires `@exodus/bytes
 
 ---
 
-## 3. Test Plan — Module by Module
+## Test Plan — Module by Module
 
 ### `packages/core` — domain and server infrastructure
 
@@ -96,7 +125,7 @@ The initial runner used jsdom. jsdom 29.1.1 transitively requires `@exodus/bytes
 
 ---
 
-## 4. When Each Test Class Runs
+## When Each Test Class Runs
 
 | Stage                                                                       | What runs                                                                       | Why                                                                                                                                                 |
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -115,7 +144,7 @@ The initial runner used jsdom. jsdom 29.1.1 transitively requires `@exodus/bytes
 
 ---
 
-## 5. Key Testing Decisions
+## Key Testing Decisions
 
 ### TDD discipline — tests written before implementation for core logic
 
@@ -160,7 +189,7 @@ A test exists because it pins a specific invariant or edge case that would be si
 
 ---
 
-## 6. Coverage Results
+## Coverage Results
 
 Results captured from `pnpm -r test:coverage` immediately after all test files were written.
 
@@ -200,7 +229,7 @@ Notable uncovered paths:
 
 ---
 
-## 7. Known Gaps & Follow-ons
+## Known Gaps & Follow-ons
 
 ### React component rendering (Board, ShipPalette, HUD)
 
